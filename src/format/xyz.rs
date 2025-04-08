@@ -32,17 +32,17 @@ pub fn parse_line(line: &str) -> Option<Atom> {
 /// Parses an XYZ file and returns a vector of `Atom` objects.
 /// # Examples
 /// ```
-/// use chelate::format::xyz::parse_xyz;
+/// use chelate::format::xyz;
 /// use std::fs::File;
 /// use std::io::BufReader;
 /// 
 /// let file = File::open("data/mescho.xyz").unwrap();
 /// let reader = BufReader::new(file);
-/// let atoms = parse_xyz(reader).unwrap();
+/// let atoms = xyz::parse(reader).unwrap();
 /// 
 /// assert_eq!(atoms.len(), 23); 
 /// ```
-pub fn parse_xyz<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
+pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
     let mut atoms = Vec::new();
     for line in reader.lines().skip(2) {
         let line = line?;
@@ -66,7 +66,7 @@ mod tests {
     fn test_xyz_files(#[case] filename: &str, #[case] len: usize) {
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
-        let atoms = parse_xyz(reader).unwrap();
+        let atoms = parse(reader).unwrap();
 
         assert_eq!(atoms.len(), len);
     }
