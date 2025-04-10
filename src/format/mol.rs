@@ -91,7 +91,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
         if let Some(bond) = parse_bond_line(&line) {
             bonds.push(bond);
         }
-        if line.contains("END") {
+        if line.contains("M  END") {
             break;
         }
     }
