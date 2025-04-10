@@ -1,7 +1,6 @@
+use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom};
 use std::io::{self, BufRead, BufReader, Read};
-
-use super::normalize_symbol;
 
 /// Parses a single line of a PDB file and returns an `Atom` object.
 /// Accoding to the PDB format specification, the line should contain the atomic symbol followed by the x, y, and z coordinates.
@@ -30,7 +29,7 @@ use super::normalize_symbol;
 /// use chelate::format::pdb::parse_line;
 ///
 /// let line = "ATOM   3912  OE2 GLU A 514      13.961  48.676  59.484  1.00 39.01           O1-";
-/// let atom = parse_line(line).unwrap();
+/// let atom = parse_atom_line(line).unwrap();
 ///
 /// assert_eq!(atom.atomic_number, 8); // Oxygen
 /// assert_eq!(atom.coord[0], 13.961);
@@ -38,18 +37,20 @@ use super::normalize_symbol;
 /// assert_eq!(atom.coord[2], 59.484);
 /// ```
 ///
-pub fn parse_line(line: &str) -> Option<Atom> {
+pub fn parse_atom_line(line: &str) -> Option<Atom> {
     let symbol = line[76..78].trim();
     let atomic_number = ATOMIC_SYMBOLS
         .iter()
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
 
+    let id = line[8..11].trim().parse().ok()?;
+
     let x = line[30..38].trim().parse().ok()?;
     let y = line[38..46].trim().parse().ok()?;
     let z = line[46..54].trim().parse().ok()?;
 
-    Some(Atom::new(atomic_number as u8, x, y, z))
+    Some(Atom::new(id, atomic_number as u8, x, y, z))
 }
 
 /// Parses an XYZ file and returns a vector of `Atom` objects.
@@ -73,7 +74,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
         if !line.starts_with("ATOM") && !line.starts_with("HETATM") {
             continue;
         }
-        if let Some(atom) = parse_line(&line) {
+        if let Some(atom) = parse_atom_line(&line) {
             atoms.push(atom);
         }
     }

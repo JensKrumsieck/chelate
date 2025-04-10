@@ -1,13 +1,15 @@
 pub mod format;
 
 pub struct Atom {
+    pub id: usize,
     pub atomic_number: u8,
-    pub coord: [f64; 3],
+    pub coord: [f32; 3],
 }
 
 impl Atom {
-    pub fn new(atomic_number: u8, x: f64, y: f64, z: f64) -> Self {
+    pub fn new(id: usize, atomic_number: u8, x: f32, y: f32, z: f32) -> Self {
         Atom {
+            id,
             atomic_number,
             coord: [x, y, z],
         }
@@ -24,3 +26,21 @@ static ATOMIC_SYMBOLS: [&str; 118] = [
     "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh",
     "Fl", "Mc", "Lv", "Ts", "Og",
 ];
+
+pub struct Bond {
+    pub atom1: usize,
+    pub atom2: usize,
+    pub order: u8,
+    pub is_aromatic: bool,
+}
+
+impl Bond {
+    pub fn new(atom1: Atom, atom2: Atom, order: u8, is_aromatic: bool) -> Self {
+        Bond {
+            atom1: atom1.id,
+            atom2: atom2.id,
+            order,
+            is_aromatic,
+        }
+    }
+}  

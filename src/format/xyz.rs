@@ -1,3 +1,4 @@
+use super::get_next_id;
 use crate::{ATOMIC_SYMBOLS, Atom};
 use std::io::{self, BufRead, BufReader, Read};
 
@@ -9,15 +10,14 @@ use std::io::{self, BufRead, BufReader, Read};
 /// use chelate::format::xyz::parse_line;
 ///
 /// let line = "C 1.0 2.0 3.0";
-/// let atom = parse_line(line).unwrap();
+/// let atom = parse_atom_line(line).unwrap();
 ///
 /// assert_eq!(atom.atomic_number, 6); // Carbon
 /// assert_eq!(atom.coord[0], 1.0);
 /// assert_eq!(atom.coord[1], 2.0);
 /// assert_eq!(atom.coord[2], 3.0);
 /// ```
-///
-pub fn parse_line(line: &str) -> Option<Atom> {
+pub fn parse_atom_line(line: &str) -> Option<Atom> {
     let mut iter = line.split_whitespace();
     let symbol = iter.next()?;
     let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol)? + 1;
@@ -26,7 +26,7 @@ pub fn parse_line(line: &str) -> Option<Atom> {
     let y = iter.next()?.parse().ok()?;
     let z = iter.next()?.parse().ok()?;
 
-    Some(Atom::new(atomic_number as u8, x, y, z))
+    Some(Atom::new(get_next_id(), atomic_number as u8, x, y, z))
 }
 
 /// Parses an XYZ file and returns a vector of `Atom` objects.
@@ -35,18 +35,18 @@ pub fn parse_line(line: &str) -> Option<Atom> {
 /// use chelate::format::xyz;
 /// use std::fs::File;
 /// use std::io::BufReader;
-/// 
+///
 /// let file = File::open("data/mescho.xyz").unwrap();
 /// let reader = BufReader::new(file);
 /// let atoms = xyz::parse(reader).unwrap();
-/// 
-/// assert_eq!(atoms.len(), 23); 
+///
+/// assert_eq!(atoms.len(), 23);
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
     let mut atoms = Vec::new();
     for line in reader.lines().skip(2) {
         let line = line?;
-        if let Some(atom) = parse_line(&line) {
+        if let Some(atom) = parse_atom_line(&line) {
             atoms.push(atom);
         }
     }
@@ -56,8 +56,8 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::File;
     use rstest::rstest;
+    use std::fs::File;
 
     #[rstest]
     #[case("data/cif.xyz", 102)]

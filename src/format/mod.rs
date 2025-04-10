@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 pub mod xyz;
 pub mod pdb;
 
@@ -8,4 +10,9 @@ pub fn normalize_symbol(symbol: &str) -> String {
         String::new()
     };
     normalized_symbol
+}
+
+pub fn get_next_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
 }
