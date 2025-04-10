@@ -1,4 +1,4 @@
-use super::{get_next_id, reset_counter};
+use super::{get_next_id, normalize_symbol, reset_counter};
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
 
@@ -25,14 +25,17 @@ pub fn parse_atom_line(line: &str) -> Option<Atom> {
     let z = iter.next()?.parse().ok()?;
 
     let symbol = iter.next()?;
-    let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol)? + 1;
-
+    let atomic_number = ATOMIC_SYMBOLS
+        .iter()
+        .position(|&s| s == normalize_symbol(symbol))?
+        + 1;
+        
     Some(Atom::new(get_next_id(), atomic_number as u8, x, y, z))
 }
 
 /// Parses a single line of an MOL file and returns a `Bond` object.
 /// The line should contain the atoms ids by the bond order where 4 is aromatic bond.
-/// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
+/// Example line: "  1  2  2  0  0  0  0"
 /// # Examples
 /// ```
 /// use chelate::format::mol::parse_bond_line;
@@ -85,14 +88,15 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
     let mut bonds = Vec::new();
     for line in reader.lines().skip(4) {
         let line = line?;
+        if line.contains("M  END") {
+            break;
+        }
+
         if let Some(atom) = parse_atom_line(&line) {
             atoms.push(atom);
         }
         if let Some(bond) = parse_bond_line(&line) {
             bonds.push(bond);
-        }
-        if line.contains("M  END") {
-            break;
         }
     }
     Ok((atoms, bonds))

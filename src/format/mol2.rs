@@ -1,9 +1,10 @@
+use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
-/// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
+/// Example line: "     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500"
 /// # Examples
 /// ```
 /// use chelate::format::mol2::parse_atom_line;
@@ -12,50 +13,65 @@ use std::io::{self, BufRead, BufReader, Read};
 /// let atom = parse_atom_line(line).unwrap();
 ///
 /// assert_eq!(atom.atomic_number, 7); // Nitrogen
-/// assert_eq!(atom.coord[0], 1.3194);
-/// assert_eq!(atom.coord[1], -1.2220);
-/// assert_eq!(atom.coord[2], -0.8506);
+/// assert_eq!(atom.coord[0], 58.6644);
+/// assert_eq!(atom.coord[1], 69.6736);
+/// assert_eq!(atom.coord[2], 7.0558);
 /// ```
 pub fn parse_atom_line(line: &str) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
     let id = iter.next()?.parse().ok()?;
-    iter.next()?; // Skip the atom name
+    let name = iter.next()?;
     let x = iter.next()?.parse().ok()?;
     let y = iter.next()?.parse().ok()?;
     let z = iter.next()?.parse().ok()?;
-    
-    let symbol = iter.next()?;
-    let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol)? + 1;
+
+    let type_ = iter.next()?;
+    let mut symbol = type_.split('.').next()?;
+
+    if !ATOMIC_SYMBOLS.contains(&symbol) {
+        symbol = get_symbol_from_name(name)
+    }
+
+    let atomic_number = ATOMIC_SYMBOLS
+        .iter()
+        .position(|&s| s == normalize_symbol(symbol))?
+        + 1;
 
     Some(Atom::new(id, atomic_number as u8, x, y, z))
 }
 
-/// Parses a single line of an MOL file and returns a `Bond` object.
-/// The line should contain the atoms ids by the bond order where 4 is aromatic bond.
-/// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
+fn get_symbol_from_name(s: &str) -> &str {
+    s.char_indices()
+        .find(|(_, c)| c.is_ascii_digit())
+        .map(|(i, _)| &s[..i])
+        .unwrap_or(s)
+}
+
+/// Parses a single line of an MO2L file and returns a `Bond` object.
+/// The line should contain the bond id, the atoms ids by the bond order where "ar" is aromatic bond.
+/// Example line: "     1     1     2   un"
 /// # Examples
 /// ```
-/// use chelate::format::mol::parse_bond_line;
+/// use chelate::format::mol2::parse_bond_line;
 ///
-/// let line = "  1  2  2  0  0  0  0";
+/// let line = "     1     1     2   un";
 /// let bond = parse_bond_line(line).unwrap();
 ///
 /// assert_eq!(bond.atom1, 1);
 /// assert_eq!(bond.atom2, 2);
-/// assert_eq!(bond.order, 2);
+/// assert_eq!(bond.order, 1);
 /// assert_eq!(bond.is_aromatic, false);
 /// ```
 pub fn parse_bond_line(line: &str) -> Option<Bond> {
     let mut iter = line.split_whitespace();
 
+    iter.next()?; // Skip the bond id
     let atom1 = iter.next()?.parse().ok()?;
     let atom2 = iter.next()?.parse().ok()?;
-    let mut order = iter.next()?.parse().ok()?;
-    let is_aromatic = order == 4;
-    if is_aromatic {
-        order = 1;
-    }
+    let raw_order = iter.next()?;
+    let order = raw_order.parse().unwrap_or(1);
+    let is_aromatic = raw_order.starts_with("ar");
 
     Some(Bond {
         atom1,
@@ -68,30 +84,60 @@ pub fn parse_bond_line(line: &str) -> Option<Bond> {
 /// Parses a mol file and returns a vector of `Atom` and a vector of `Bond` objects.
 /// # Examples
 /// ```
-/// use chelate::format::mol;
+/// use chelate::format::mol2;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///
-/// let file = File::open("data/corrole.mol").unwrap();
+/// let file = File::open("data/ptcor.mol2").unwrap();
 /// let reader = BufReader::new(file);
-/// let (atoms, bonds) = mol::parse(reader).unwrap();
+/// let (atoms, bonds) = mol2::parse(reader).unwrap();
 ///
-/// assert_eq!(atoms.len(), 37);
-/// assert_eq!(bonds.len(), 41);
+/// assert_eq!(atoms.len(), 129);
+/// assert_eq!(bonds.len(), 127);
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut atoms = Vec::new();
     let mut bonds = Vec::new();
-    for line in reader.lines().skip(4) {
+
+    let mut pick_atoms = false;
+    let mut pick_bonds = false;
+
+    for line in reader.lines().skip_while(|s| {
+        s.as_ref()
+            .unwrap_or(&String::from(""))
+            .contains("@<TRIPOS>ATOM")
+    }) {
         let line = line?;
-        if let Some(atom) = parse_atom_line(&line) {
-            atoms.push(atom);
+        let line_trimmed = line.trim();
+        match line_trimmed {
+            "@<TRIPOS>ATOM" => {
+                pick_atoms = true;
+                pick_bonds = false;
+                continue;
+            }
+            "@<TRIPOS>BOND" => {
+                pick_atoms = false;
+                pick_bonds = true;
+                continue;
+            }
+            _ => {
+                if line.starts_with("@<TRIPOS>") {
+                    pick_atoms = false;
+                    pick_bonds = false;
+                    continue;
+                }
+            }
         }
-        if let Some(bond) = parse_bond_line(&line) {
-            bonds.push(bond);
+
+        if pick_atoms {
+            if let Some(atom) = parse_atom_line(&line) {
+                atoms.push(atom);
+            }
         }
-        if line.contains("M  END") {
-            break;
+        if pick_bonds {
+            if let Some(bond) = parse_bond_line(&line) {
+                bonds.push(bond);
+            }
         }
     }
     Ok((atoms, bonds))
@@ -104,11 +150,12 @@ mod tests {
     use std::fs::File;
 
     #[rstest]
-    #[case("data/benzene_3d.mol", 12, 12)]
-    #[case("data/benzene_arom.mol", 12, 12)]
-    #[case("data/benzene.mol", 6, 6)]
-    #[case("data/tep.mol", 46, 50)]
-    #[case("data/corrole.mol", 37, 41)]
+    #[case("data/0001.mol2", 15450, 14898)]
+    #[case("data/benzene.mol2", 12, 12)]
+    #[case("data/myo.mol2", 1437, 1312)]
+    #[case("data/ptcor.mol2", 129, 127)]
+    #[case("data/tep.mol2", 46, 50)]
+    #[case("data/VATTOC.mol2", 130, 146)]
     fn test_mol_files(#[case] filename: &str, #[case] atom_len: usize, #[case] bond_len: usize) {
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
