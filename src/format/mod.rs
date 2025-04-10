@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 pub mod xyz;
 pub mod pdb;
 pub mod mol;
+pub mod mol2;
 
 pub fn normalize_symbol(symbol: &str) -> String {
     let normalized_symbol = if let Some(first_char) = symbol.chars().next() {
