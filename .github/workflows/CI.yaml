@@ -1,11 +1,13 @@
-name: Rust CI
+name: 🦀 Continuous Integration
 on:
   push:
     branches:
-      - main
+      - master
+
   pull_request:
     branches:
-      - main
+      - master
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,11 +17,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-      - name: Clippy
+      - name: 📎 Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-          
-      - name: Build
+
+      - name: 🏗️ Build
         run: cargo build
-    
+
       - name: Run tests
         run: cargo test --verbose --workspace
