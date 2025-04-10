@@ -1,4 +1,4 @@
-use super::get_next_id;
+use super::{get_next_id, reset_counter};
 use crate::{ATOMIC_SYMBOLS, Atom};
 use std::io::{self, BufRead, BufReader, Read};
 
@@ -7,7 +7,7 @@ use std::io::{self, BufRead, BufReader, Read};
 /// Example line: "C 1.0 2.0 3.0"
 /// # Examples
 /// ```
-/// use chelate::format::xyz::parse_line;
+/// use chelate::format::xyz::parse_atom_line;
 ///
 /// let line = "C 1.0 2.0 3.0";
 /// let atom = parse_atom_line(line).unwrap();
@@ -43,6 +43,8 @@ pub fn parse_atom_line(line: &str) -> Option<Atom> {
 /// assert_eq!(atoms.len(), 23);
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
+    reset_counter();
+    
     let mut atoms = Vec::new();
     for line in reader.lines().skip(2) {
         let line = line?;

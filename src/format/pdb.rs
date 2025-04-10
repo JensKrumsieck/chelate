@@ -26,7 +26,7 @@ use std::io::{self, BufRead, BufReader, Read};
 ///
 /// # Examples
 /// ```
-/// use chelate::format::pdb::parse_line;
+/// use chelate::format::pdb::parse_atom_line;
 ///
 /// let line = "ATOM   3912  OE2 GLU A 514      13.961  48.676  59.484  1.00 39.01           O1-";
 /// let atom = parse_atom_line(line).unwrap();
