@@ -5,19 +5,7 @@ use std::io::{self, BufRead, BufReader, Read};
 /// Parses a single line of an MOL file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
 /// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
-/// # Examples
-/// ```
-/// use chelate::format::mol::parse_atom_line;
-///
-/// let line = "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0";
-/// let atom = parse_atom_line(line).unwrap();
-///
-/// assert_eq!(atom.atomic_number, 7); // Nitrogen
-/// assert_eq!(atom.coord[0], 1.3194);
-/// assert_eq!(atom.coord[1], -1.2220);
-/// assert_eq!(atom.coord[2], -0.8506);
-/// ```
-pub fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
     let x = iter.next()?.parse().ok()?;
@@ -34,21 +22,9 @@ pub fn parse_atom_line(line: &str) -> Option<Atom> {
 }
 
 /// Parses a single line of an MOL file and returns a `Bond` object.
-/// The line should contain the atoms ids by the bond order where 4 is aromatic bond.
+/// The line should contain the atoms ids and the bond order where 4 is aromatic bond.
 /// Example line: "  1  2  2  0  0  0  0"
-/// # Examples
-/// ```
-/// use chelate::format::mol::parse_bond_line;
-///
-/// let line = "  1  2  2  0  0  0  0";
-/// let bond = parse_bond_line(line).unwrap();
-///
-/// assert_eq!(bond.atom1, 1);
-/// assert_eq!(bond.atom2, 2);
-/// assert_eq!(bond.order, 2);
-/// assert_eq!(bond.is_aromatic, false);
-/// ```
-pub fn parse_bond_line(line: &str) -> Option<Bond> {
+fn parse_bond_line(line: &str) -> Option<Bond> {
     let mut iter = line.split_whitespace();
 
     let atom1 = iter.next()?.parse().ok()?;

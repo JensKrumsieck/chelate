@@ -5,19 +5,7 @@ use std::io::{self, BufRead, BufReader, Read};
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
 /// Example line: "     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500"
-/// # Examples
-/// ```
-/// use chelate::format::mol2::parse_atom_line;
-///
-/// let line = "     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500";
-/// let atom = parse_atom_line(line).unwrap();
-///
-/// assert_eq!(atom.atomic_number, 7); // Nitrogen
-/// assert_eq!(atom.coord[0], 58.6644);
-/// assert_eq!(atom.coord[1], 69.6736);
-/// assert_eq!(atom.coord[2], 7.0558);
-/// ```
-pub fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
     let id = iter.next()?.parse().ok()?;
@@ -51,19 +39,7 @@ fn get_symbol_from_name(s: &str) -> &str {
 /// Parses a single line of an MO2L file and returns a `Bond` object.
 /// The line should contain the bond id, the atoms ids by the bond order where "ar" is aromatic bond.
 /// Example line: "     1     1     2   un"
-/// # Examples
-/// ```
-/// use chelate::format::mol2::parse_bond_line;
-///
-/// let line = "     1     1     2   un";
-/// let bond = parse_bond_line(line).unwrap();
-///
-/// assert_eq!(bond.atom1, 1);
-/// assert_eq!(bond.atom2, 2);
-/// assert_eq!(bond.order, 1);
-/// assert_eq!(bond.is_aromatic, false);
-/// ```
-pub fn parse_bond_line(line: &str) -> Option<Bond> {
+fn parse_bond_line(line: &str) -> Option<Bond> {
     let mut iter = line.split_whitespace();
 
     iter.next()?; // Skip the bond id

@@ -23,21 +23,7 @@ use std::io::{self, BufRead, BufReader, Read};
 /// | 61 - 66  | Real(6.2)   | tempFactor   | Temperature factor.                         |
 /// | 77 - 78  | LString(2)  | element      | Element symbol, right-justified.            |
 /// | 79 - 80  | LString(2)  | charge       | Charge on the atom.                         |
-///
-/// # Examples
-/// ```
-/// use chelate::format::pdb::parse_atom_line;
-///
-/// let line = "ATOM   3912  OE2 GLU A 514      13.961  48.676  59.484  1.00 39.01           O1-";
-/// let atom = parse_atom_line(line).unwrap();
-///
-/// assert_eq!(atom.atomic_number, 8); // Oxygen
-/// assert_eq!(atom.coord[0], 13.961);
-/// assert_eq!(atom.coord[1], 48.676);
-/// assert_eq!(atom.coord[2], 59.484);
-/// ```
-///
-pub fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str) -> Option<Atom> {
     let symbol = line[76..78].trim();
     let atomic_number = ATOMIC_SYMBOLS
         .iter()

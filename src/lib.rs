@@ -1,5 +1,6 @@
 pub mod format;
 
+#[derive(Debug)]
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
@@ -27,6 +28,7 @@ static ATOMIC_SYMBOLS: [&str; 118] = [
     "Fl", "Mc", "Lv", "Ts", "Og",
 ];
 
+#[derive(Debug)]
 pub struct Bond {
     pub atom1: usize,
     pub atom2: usize,
