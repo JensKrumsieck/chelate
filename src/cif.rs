@@ -54,6 +54,8 @@ fn parse_atom_line(
     header: &CIFAtomHeader,
     atom_count: &mut usize,
     label_map: &mut HashMap<String, usize>,
+    dialect: &CIFDialect,
+    fract_mtrx: &Matrix4<f32>,
 ) -> Option<Atom> {
     let vec = line.split_whitespace().collect::<Vec<_>>();
 
@@ -74,7 +76,7 @@ fn parse_atom_line(
     let residue = if header.residue != 0 {
         vec[header.residue]
     } else {
-        Default::default()
+        "UNK"
     };
     let chain_id = if header.chain != 0 {
         vec[header.chain].chars().next().unwrap_or_default()
@@ -100,6 +102,9 @@ fn parse_atom_line(
     *atom_count += 1;
     label_map.insert(id.to_owned(), *atom_count);
     let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    if *dialect == CIFDialect::CCDC {
+        atom.coord = fract_mtrx.transform_vector(&atom.coord);
+    }
     //additional info
     atom.disorder_group = disorder_group;
     atom.name = id.to_string();
@@ -107,7 +112,6 @@ fn parse_atom_line(
     atom.chain = chain_id;
     atom.resid = seq_id;
     atom.occupancy = occ;
-
     Some(atom)
 }
 
@@ -134,6 +138,8 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// ```
 /// use chelate::cif;
 /// use std::fs::File;
+/// use nalgebra::Vector3;
+/// use approx::relative_eq;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/147288.cif").unwrap();
@@ -142,6 +148,13 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 ///
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
+/// assert_eq!(atoms[0].atomic_number, 31);
+/// assert!(relative_eq!(atoms[0].coord, Vector3::new(11.377683611607571, 1.637743396392762, 3.827447754962335), epsilon = 1.0e-5));
+/// assert_eq!(atoms[0].resname, "UNK");
+/// assert_eq!(atoms[0].resid, 0);
+/// assert_eq!(atoms[0].chain, char::default());
+/// assert_eq!(atoms[0].occupancy, 1.0);
+/// assert_eq!(atoms[0].name, "Ga1A");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut dialect = CIFDialect::default();
@@ -202,12 +215,14 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             if line_trimmed.starts_with("_") {
                 set_header_indices(line_trimmed, header_idx, &mut headers);
                 header_idx += 1;
-            } else if let Some(mut atom) =
-                parse_atom_line(line_trimmed, &headers, &mut atom_count, &mut map)
-            {
-                if dialect == CIFDialect::CCDC {
-                    atom.coord = fract_mtrx.transform_vector(&atom.coord);
-                }
+            } else if let Some(atom) = parse_atom_line(
+                line_trimmed,
+                &headers,
+                &mut atom_count,
+                &mut map,
+                &dialect,
+                &fract_mtrx,
+            ) {
                 atoms.push(atom);
             }
         } else if pick_bonds {
@@ -276,7 +291,7 @@ fn conversion_matrix(a: f32, b: f32, c: f32, alpha: f32, beta: f32, gamma: f32) 
     let cos_gamma = (gamma * PI / 180.0).cos();
     let sin_gamma = (gamma * PI / 180.0).sin();
 
-    let m = Matrix4::new(
+    Matrix4::new(
         a,
         b * cos_gamma,
         c * cos_beta,
@@ -296,9 +311,7 @@ fn conversion_matrix(a: f32, b: f32, c: f32, alpha: f32, beta: f32, gamma: f32) 
         0.0,
         0.0,
         1.0,
-    );
-
-    m.transpose()
+    )
 }
 
 #[cfg(test)]

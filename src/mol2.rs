@@ -53,6 +53,7 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
     atom.chain = chain_id;
     atom.resname = residue.to_string();
     atom.resid = res_id;
+    atom.name = name.to_string();
 
     Some(atom)
 }
@@ -105,6 +106,8 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(atoms[0].resname, "RES");
 /// assert_eq!(atoms[0].resid, 1);
 /// assert_eq!(atoms[0].chain, '1');
+/// assert_eq!(atoms[0].occupancy, 1.0);
+/// assert_eq!(atoms[0].name, "Pt1");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut atoms = Vec::new();

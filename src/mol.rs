@@ -23,7 +23,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 
     let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     atom.name = symbol.to_string();
-    
+
     Some(atom)
 }
 
@@ -54,6 +54,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// ```
 /// use chelate::mol;
 /// use std::fs::File;
+/// use nalgebra::Vector3;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/corrole.mol").unwrap();
@@ -62,6 +63,13 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 ///
 /// assert_eq!(atoms.len(), 37);
 /// assert_eq!(bonds.len(), 41);
+/// assert_eq!(atoms[0].atomic_number, 7);
+/// assert_eq!(atoms[0].coord, Vector3::new(1.3194, -1.2220, -0.8506));
+/// assert_eq!(atoms[0].resname, "UNK");
+/// assert_eq!(atoms[0].resid, 0);
+/// assert_eq!(atoms[0].chain, char::default());
+/// assert_eq!(atoms[0].occupancy, 1.0);
+/// assert_eq!(atoms[0].name, "N");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut atom_count = 0;
