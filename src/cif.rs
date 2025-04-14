@@ -21,9 +21,12 @@ enum CIFDialect {
 
 /// Parses a single line of a CCDC CIF (Crystallographic information file) file and returns an `Atom` object.
 /// In comparison to other file formats, cif files can have 3 different types: CCDC, mmCIF and compCIF
-/// CCDC:       N1 N 0.0662(3) 0.55056(14) 0.1420(3) 0.066(2) Uani 1 1 d . . . . .
-/// mmCIF:      ATOM   2    C  CA  . MET A 1 13  ? -16.763 -22.990 22.365  1.00 30.45  ? 1   MET A CA
-/// compCIF:    H20 CA   CA   C  0 1 N N N 1.747  -36.297 22.990 -1.853 -0.230 0.046  CA   H20 1
+/// 
+/// CCDC:       `N1 N 0.0662(3) 0.55056(14) 0.1420(3) 0.066(2) Uani 1 1 d . . . . .`
+/// 
+/// mmCIF:      `ATOM   2    C  CA  . MET A 1 13  ? -16.763 -22.990 22.365  1.00 30.45  ? 1   MET A CA`
+/// 
+/// compCIF:    `H20 CA   CA   C  0 1 N N N 1.747  -36.297 22.990 -1.853 -0.230 0.046  CA   H20 1`
 fn parse_atom_line(
     line: &str,
     header: &[usize; 6],
@@ -68,7 +71,7 @@ fn parse_atom_line(
 
 /// Parses a single line of an CIF file and returns a `Bond` object.
 /// The line should contain the atoms names which need to be mapped to ids
-/// Example line: "C4A N21A 1.370(3) . ?"
+/// Example line: `C4A N21A 1.370(3) . ?`
 fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialect) -> Option<Bond> {
     let mut iter = line.split_whitespace();
     if *dialect == CIFDialect::compCIF {

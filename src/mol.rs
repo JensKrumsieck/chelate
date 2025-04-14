@@ -4,7 +4,7 @@ use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an MOL file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
-/// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
+/// Example line: `    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0`
 fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
@@ -23,7 +23,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 
 /// Parses a single line of an MOL file and returns a `Bond` object.
 /// The line should contain the atoms ids and the bond order where 4 is aromatic bond.
-/// Example line: "  1  2  2  0  0  0  0"
+/// Example line: `  1  2  2  0  0  0  0`
 fn parse_bond_line(line: &str) -> Option<Bond> {
     let mut iter = line.split_whitespace();
 

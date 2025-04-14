@@ -3,7 +3,7 @@ use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an XYZ file and returns an `Atom` object.
 /// The line should contain the atomic symbol followed by the x, y, and z coordinates.
-/// Example line: "C 1.0 2.0 3.0"
+/// Example line: `C 1.0 2.0 3.0`
 fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let mut iter = line.split_whitespace();
     let symbol = iter.next()?;

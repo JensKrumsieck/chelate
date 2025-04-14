@@ -4,7 +4,7 @@ use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
-/// Example line: "     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500"
+/// Example line: `     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500`
 fn parse_atom_line(line: &str) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
@@ -38,7 +38,7 @@ fn get_symbol_from_name(s: &str) -> &str {
 
 /// Parses a single line of an MO2L file and returns a `Bond` object.
 /// The line should contain the bond id, the atoms ids by the bond order where "ar" is aromatic bond.
-/// Example line: "     1     1     2   un"
+/// Example line: `     1     1     2   un`
 fn parse_bond_line(line: &str) -> Option<Bond> {
     let mut iter = line.split_whitespace();
 
