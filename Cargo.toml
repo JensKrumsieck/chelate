@@ -1,7 +1,13 @@
 [package]
 name = "chelate"
+description = "Parser for a bunch of molecule file formats"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/JensKrumsieck/chelate"
+license = "MIT or Apache-2.0"
+authors = ["Jens Krumsieck"]
+keywords = ["chemistry", "molecule", "ccdc", "cif", "pdb", "mol2", "mol", "xyz"]
+categories = ["science"]
 
 [dependencies]
 nalgebra = "0.33.2"
