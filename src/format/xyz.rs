@@ -1,11 +1,10 @@
-use super::{get_next_id, reset_counter};
 use crate::{ATOMIC_SYMBOLS, Atom};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an XYZ file and returns an `Atom` object.
 /// The line should contain the atomic symbol followed by the x, y, and z coordinates.
 /// Example line: "C 1.0 2.0 3.0"
-fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let mut iter = line.split_whitespace();
     let symbol = iter.next()?;
     let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol)? + 1;
@@ -13,8 +12,8 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
     let x = iter.next()?.parse().ok()?;
     let y = iter.next()?.parse().ok()?;
     let z = iter.next()?.parse().ok()?;
-
-    Some(Atom::new(get_next_id(), atomic_number as u8, x, y, z))
+    *atom_count += 1;
+    Some(Atom::new(*atom_count, atomic_number as u8, x, y, z))
 }
 
 /// Parses an XYZ file and returns a vector of `Atom` objects.
@@ -31,12 +30,12 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
 /// assert_eq!(atoms.len(), 23);
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
-    reset_counter();
-    
+    let mut atom_count = 0;
+
     let mut atoms = Vec::new();
     for line in reader.lines().skip(2) {
         let line = line?;
-        if let Some(atom) = parse_atom_line(&line) {
+        if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
             atoms.push(atom);
         }
     }

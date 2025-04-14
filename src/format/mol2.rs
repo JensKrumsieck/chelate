@@ -110,7 +110,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
                 atoms.push(atom);
             }
         }
-        if pick_bonds {
+        else if pick_bonds {
             if let Some(bond) = parse_bond_line(&line) {
                 bonds.push(bond);
             }

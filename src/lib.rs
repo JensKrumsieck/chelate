@@ -4,6 +4,7 @@ pub mod format;
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
+    pub is_disordered: bool,
     pub coord: [f32; 3],
 }
 
@@ -11,6 +12,7 @@ impl Atom {
     pub fn new(id: usize, atomic_number: u8, x: f32, y: f32, z: f32) -> Self {
         Atom {
             id,
+            is_disordered: false,
             atomic_number,
             coord: [x, y, z],
         }
@@ -45,4 +47,4 @@ impl Bond {
             is_aromatic,
         }
     }
-}  
+}

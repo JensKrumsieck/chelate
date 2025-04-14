@@ -1,5 +1,3 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 pub mod cif;
 pub mod mol;
 pub mod mol2;
@@ -13,13 +11,4 @@ pub fn normalize_symbol(symbol: &str) -> String {
         String::new()
     };
     normalized_symbol
-}
-
-static COUNTER: AtomicUsize = AtomicUsize::new(0);
-pub fn get_next_id() -> usize {
-    COUNTER.fetch_add(1, Ordering::Relaxed)
-}
-
-pub(crate) fn reset_counter() {
-    COUNTER.store(0, Ordering::Relaxed);
 }

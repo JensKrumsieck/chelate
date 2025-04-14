@@ -1,11 +1,11 @@
-use super::{get_next_id, normalize_symbol, reset_counter};
+use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an MOL file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
 /// Example line: "    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0"
-fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
     let x = iter.next()?.parse().ok()?;
@@ -17,8 +17,8 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
         .iter()
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
-        
-    Some(Atom::new(get_next_id(), atomic_number as u8, x, y, z))
+    *atom_count += 1;
+    Some(Atom::new(*atom_count, atomic_number as u8, x, y, z))
 }
 
 /// Parses a single line of an MOL file and returns a `Bond` object.
@@ -58,7 +58,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(bonds.len(), 41);
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
-    reset_counter();
+    let mut atom_count = 0;
 
     let mut atoms = Vec::new();
     let mut bonds = Vec::new();
@@ -68,7 +68,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             break;
         }
 
-        if let Some(atom) = parse_atom_line(&line) {
+        if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
             atoms.push(atom);
         }
         if let Some(bond) = parse_bond_line(&line) {
