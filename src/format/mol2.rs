@@ -132,7 +132,7 @@ mod tests {
     #[case("data/ptcor.mol2", 129, 127)]
     #[case("data/tep.mol2", 46, 50)]
     #[case("data/VATTOC.mol2", 130, 146)]
-    fn test_mol_files(#[case] filename: &str, #[case] atom_len: usize, #[case] bond_len: usize) {
+    fn test_mol2_files(#[case] filename: &str, #[case] atom_len: usize, #[case] bond_len: usize) {
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
         let (atoms, bonds) = parse(reader).unwrap();
