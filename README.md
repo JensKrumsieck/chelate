@@ -1,4 +1,10 @@
 # Chelate
+[![Crates.io Version](https://img.shields.io/crates/v/chelate)
+![Crates.io Total Downloads](https://img.shields.io/crates/d/chelate)](https://crates.io/crates/chelate)
+[![🦀 Continuous Integration](https://github.com/JensKrumsieck/chelate/actions/workflows/CI.yaml/badge.svg)](https://github.com/JensKrumsieck/chelate/actions/workflows/CI.yaml)
+[![Docs.rs](https://img.shields.io/docsrs/chelate/latest)](https://docs.rs/chelate)
+[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/jenskrumsieck/chelate#license)
+
 Chelate is a simple parser for a bunch of molecular file formats.
 
 Supported formats:
