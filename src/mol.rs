@@ -46,7 +46,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// Parses a mol file and returns a vector of `Atom` and a vector of `Bond` objects.
 /// # Examples
 /// ```
-/// use chelate::format::mol;
+/// use chelate::mol;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///

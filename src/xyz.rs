@@ -19,7 +19,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 /// Parses an XYZ file and returns a vector of `Atom` objects.
 /// # Examples
 /// ```
-/// use chelate::format::xyz;
+/// use chelate::xyz;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///

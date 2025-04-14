@@ -87,7 +87,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// Parses a CIF file and returns a vector of `Atom` and a vector of `Bond` objects.
 /// # Examples
 /// ```
-/// use chelate::format::cif;
+/// use chelate::cif;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///
