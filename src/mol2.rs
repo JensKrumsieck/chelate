@@ -20,6 +20,26 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
     let type_ = iter.next()?;
     let mut symbol = type_.split('.').next()?;
 
+    let chain_id = if let Some(next) = iter.next() {
+        next.parse().unwrap_or_default()
+    } else {
+        Default::default()
+    };
+
+    let residue_raw = iter.next().unwrap_or_default();
+    let id_pos = residue_raw.chars().position(|c| c.is_numeric());
+    let residue = if let Some(pos) = id_pos {
+        &residue_raw[..pos]
+    } else {
+        residue_raw
+    };
+
+    let res_id = if let Some(pos) = id_pos {
+        residue_raw[pos..].parse().unwrap_or(0)
+    } else {
+        0
+    };
+
     if !ATOMIC_SYMBOLS.contains(&symbol) {
         symbol = get_symbol_from_name(name)
     }
@@ -29,7 +49,12 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
 
-    Some(Atom::new(id, atomic_number as u8, x, y, z))
+    let mut atom = Atom::new(id, atomic_number as u8, x, y, z);
+    atom.chain = chain_id;
+    atom.resname = residue.to_string();
+    atom.resid = res_id;
+
+    Some(atom)
 }
 
 fn get_symbol_from_name(s: &str) -> &str {
@@ -64,6 +89,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// # Examples
 /// ```
 /// use chelate::mol2;
+/// use nalgebra::Vector3;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///
@@ -73,6 +99,12 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 ///
 /// assert_eq!(atoms.len(), 129);
 /// assert_eq!(bonds.len(), 127);
+/// 
+/// assert_eq!(atoms[0].atomic_number, 78);
+/// assert_eq!(atoms[0].coord, Vector3::new(8.7088, 6.0412,5.1685));
+/// assert_eq!(atoms[0].resname, "RES");
+/// assert_eq!(atoms[0].resid, 1);
+/// assert_eq!(atoms[0].chain, '1');
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut atoms = Vec::new();
@@ -112,8 +144,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             if let Some(atom) = parse_atom_line(&line) {
                 atoms.push(atom);
             }
-        }
-        else if pick_bonds {
+        } else if pick_bonds {
             if let Some(bond) = parse_bond_line(&line) {
                 bonds.push(bond);
             }

@@ -6,13 +6,14 @@
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use super::normalize_symbol;
 use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::Matrix4;
 use std::{
     collections::HashMap,
     f32::consts::PI,
     io::{self, BufRead, BufReader, Read},
 };
 
+/// Represents the type of CIF file (dialect) being parsed.
 #[derive(Default, PartialEq)]
 enum CIFDialect {
     #[default]
@@ -25,6 +26,21 @@ enum CIFDialect {
     compCIF,
 }
 
+/// Stores position of columns based on column headers
+#[derive(Default)]
+struct CIFAtomHeader {
+    symbol: usize,
+    x: usize,
+    y: usize,
+    z: usize,
+    id: usize,
+    disorder: usize,
+    residue: usize,
+    chain: usize,
+    seq_id: usize,
+    occupancy: usize,
+}
+
 /// Parses a single line of a CCDC CIF (Crystallographic information file) file and returns an `Atom` object.
 /// In comparison to other file formats, cif files can have 3 different types: CCDC, mmCIF and compCIF
 ///
@@ -35,30 +51,46 @@ enum CIFDialect {
 /// compCIF:    `H20 CA   CA   C  0 1 N N N 1.747  -36.297 22.990 -1.853 -0.230 0.046  CA   H20 1`
 fn parse_atom_line(
     line: &str,
-    header: &[usize; 6],
+    header: &CIFAtomHeader,
     atom_count: &mut usize,
     label_map: &mut HashMap<String, usize>,
 ) -> Option<Atom> {
     let vec = line.split_whitespace().collect::<Vec<_>>();
 
-    if vec.len() <= header[3] {
+    if vec.len() <= header.z {
         return None;
     }
 
-    let symbol = vec[header[0]];
-    let x = vec[header[1]].split('(').next()?.parse().ok()?;
-    let y = vec[header[2]].split('(').next()?.parse().ok()?;
-    let z = vec[header[3]].split('(').next()?.parse().ok()?;
-    let id = vec[header[4]];
-
-    let is_disordered = if header[5] != 0 && header[5] < vec.len() {
-        if let Ok(disorder_group) = vec[header[5]].parse::<usize>() {
-            disorder_group == 2
-        } else {
-            false
-        }
+    let symbol = vec[header.symbol];
+    let x = vec[header.x].split('(').next()?.parse().ok()?;
+    let y = vec[header.y].split('(').next()?.parse().ok()?;
+    let z = vec[header.z].split('(').next()?.parse().ok()?;
+    let id = vec[header.id];
+    let disorder_group = if header.disorder != 0 && header.disorder < vec.len() {
+        vec[header.disorder].parse::<usize>().unwrap_or(0)
     } else {
-        false
+        0
+    };
+    let residue = if header.residue != 0 {
+        vec[header.residue]
+    } else {
+        Default::default()
+    };
+    let chain_id = if header.chain != 0 {
+        vec[header.chain].chars().next().unwrap_or_default()
+    } else {
+        char::default()
+    };
+    let seq_id = if header.seq_id != 0 {
+        vec[header.seq_id].parse::<i32>().unwrap_or_default()
+    } else {
+        0
+    };
+
+    let occ = if header.occupancy != 0 {
+        vec[header.occupancy].parse::<f32>().unwrap_or(1.0)
+    } else {
+        1.0
     };
 
     let atomic_number = ATOMIC_SYMBOLS
@@ -67,12 +99,16 @@ fn parse_atom_line(
         + 1;
     *atom_count += 1;
     label_map.insert(id.to_owned(), *atom_count);
-    Some(Atom {
-        id: *atom_count,
-        atomic_number: atomic_number as u8,
-        coord: [x, y, z],
-        is_disordered,
-    })
+    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    //additional info
+    atom.disorder_group = disorder_group;
+    atom.name = id.to_string();
+    atom.resname = residue.to_string();
+    atom.chain = chain_id;
+    atom.resid = seq_id;
+    atom.occupancy = occ;
+
+    Some(atom)
 }
 
 /// Parses a single line of an CIF file and returns a `Bond` object.
@@ -86,8 +122,8 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
     let atom1 = iter.next()?;
     let atom2 = iter.next()?;
     Some(Bond {
-        atom1: map[atom1],
-        atom2: map[atom2],
+        atom1: *map.get(atom1)?,
+        atom2: *map.get(atom2)?,
         order: 1,
         is_aromatic: false,
     })
@@ -116,7 +152,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
     let mut pick_atoms = false;
     let mut pick_bonds = false;
 
-    let mut headers = [0; 6];
+    let mut headers = CIFAtomHeader::default();
     let mut header_idx = 0;
     let mut atom_count = 0;
 
@@ -139,14 +175,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             //collect cell parameters
             if line_trimmed.starts_with("_cell_length_") || line_trimmed.starts_with("_cell_angle_")
             {
-                let mut iter = line_trimmed.split_whitespace();
-                iter.next(); //discard name
-
-                cell_params[param_idx] =
-                    get_value_from_uncertainity(iter.next().unwrap_or_default())
-                        .unwrap_or_default();
-                param_idx += 1;
-
+                param_idx = parse_cell_params(line_trimmed, param_idx, &mut cell_params);
                 if param_idx == 6 {
                     fract_mtrx = conversion_matrix_arr(cell_params);
                 }
@@ -171,28 +200,13 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
 
         if pick_atoms {
             if line_trimmed.starts_with("_") {
-                if line_trimmed.contains("symbol") {
-                    headers[0] = header_idx;
-                } else if line_trimmed.contains("fract_x") || line_trimmed.contains("Cartn_x") {
-                    headers[1] = header_idx
-                } else if line_trimmed.contains("fract_y") || line_trimmed.contains("Cartn_y") {
-                    headers[2] = header_idx
-                } else if line_trimmed.contains("fract_z") || line_trimmed.contains("Cartn_z") {
-                    headers[3] = header_idx
-                } else if line.starts_with("_atom_site.label_atom_id")
-                    || line_trimmed.contains("atom.atom_id")
-                    || line_trimmed.starts_with("_atom_site_label")
-                {
-                    headers[4] = header_idx
-                } else if line_trimmed.contains("disorder_group") {
-                    headers[5] = header_idx
-                }
+                set_header_indices(line_trimmed, header_idx, &mut headers);
                 header_idx += 1;
             } else if let Some(mut atom) =
                 parse_atom_line(line_trimmed, &headers, &mut atom_count, &mut map)
             {
                 if dialect == CIFDialect::CCDC {
-                    atom.coord = fractional_to_cartesian(&atom.coord, fract_mtrx);
+                    atom.coord = fract_mtrx.transform_vector(&atom.coord);
                 }
                 atoms.push(atom);
             }
@@ -216,6 +230,36 @@ fn set_dialect(line: &str) -> CIFDialect {
     } else {
         CIFDialect::Undefined
     }
+}
+
+fn set_header_indices(header: &str, index: usize, headers: &mut CIFAtomHeader) {
+    match header {
+        h if h.contains("symbol") => headers.symbol = index,
+        h if h.contains("fract_x") || h.contains("Cartn_x") => headers.x = index,
+        h if h.contains("fract_y") || h.contains("Cartn_y") => headers.y = index,
+        h if h.contains("fract_z") || h.contains("Cartn_z") => headers.z = index,
+        h if h.contains("label_atom_id")
+            || h.contains("atom.atom_id")
+            || h.contains("_site_label") =>
+        {
+            headers.id = index
+        }
+        h if h.contains("disorder_group") => headers.disorder = index,
+        h if h.contains("auth_comp_id") || h.contains("comp_id") => headers.residue = index,
+        h if h.contains("auth_asym_id") => headers.chain = index,
+        h if h.contains("auth_seq_id") => headers.seq_id = index,
+        h if h.contains("occupancy") => headers.occupancy = index,
+        _ => {}
+    }
+}
+
+fn parse_cell_params(line: &str, param_idx: usize, cell_params: &mut [f32; 6]) -> usize {
+    let mut iter = line.split_whitespace();
+    iter.next(); //discard name
+
+    cell_params[param_idx] =
+        get_value_from_uncertainity(iter.next().unwrap_or_default()).unwrap_or_default();
+    param_idx + 1
 }
 
 fn get_value_from_uncertainity(input: &str) -> Option<f32> {
@@ -257,12 +301,6 @@ fn conversion_matrix(a: f32, b: f32, c: f32, alpha: f32, beta: f32, gamma: f32) 
     m.transpose()
 }
 
-fn fractional_to_cartesian(fractional: &[f32; 3], matrix: Matrix4<f32>) -> [f32; 3] {
-    let pos = Vector3::from_column_slice(fractional);
-    let cartesian = matrix.transform_vector(&pos);
-    [cartesian.x, cartesian.y, cartesian.z]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,11 +321,15 @@ mod tests {
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
         let (atoms, bonds) = parse(reader).unwrap();
-        assert_eq!(atoms.iter().filter(|a| !a.is_disordered).count(), atom_len);
+        assert_eq!(
+            atoms.iter().filter(|a| a.disorder_group != 2).count(),
+            atom_len
+        );
         assert_eq!(
             bonds
                 .iter()
-                .filter(|b| !atoms[b.atom1 - 1].is_disordered && !atoms[b.atom2 - 1].is_disordered)
+                .filter(|b| atoms[b.atom1 - 1].disorder_group != 2
+                    && atoms[b.atom2 - 1].disorder_group != 2)
                 .count(),
             bond_len
         );

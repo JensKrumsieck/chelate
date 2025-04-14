@@ -1,20 +1,47 @@
+use nalgebra::Vector3;
+use std::ops::{Deref, DerefMut};
+
 #[derive(Debug)]
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
-    pub is_disordered: bool,
-    pub coord: [f32; 3],
+    pub data: Box<AtomData>,
+    pub coord: Vector3<f32>,
 }
 
 impl Atom {
     pub fn new(id: usize, atomic_number: u8, x: f32, y: f32, z: f32) -> Self {
         Atom {
             id,
-            is_disordered: false,
             atomic_number,
-            coord: [x, y, z],
+            coord: Vector3::new(x, y, z),
+            data: Default::default(),
         }
     }
+}
+
+impl Deref for Atom {
+    type Target = AtomData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for Atom {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AtomData {
+    pub name: String,
+    pub resname: String,
+    pub resid: i32,
+    pub chain: char,
+    pub disorder_group: usize,
+    pub occupancy: f32,
 }
 
 pub(crate) static ATOMIC_SYMBOLS: [&str; 118] = [
