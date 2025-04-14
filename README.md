@@ -7,12 +7,16 @@
 
 Chelate is a simple parser for a bunch of molecular file formats.
 
-Supported formats:
-* PDB
-* MOL
-* MOL2 (TRIPOS)
-* CIF (CCDC, mmCIF)
-* XYZ
+| Format |  MIME | Import | Export |
+|--------|-------|--------|--------|
+|[IUCr CIF](https://www.iucr.org/resources/cif) | `chemical/x-cif` | ✅  | ❌ |
+|[PDBx/mmCIF](https://mmcif.wwpdb.org/docs/user-guide/guide.html)| `chemical/x-mmcif`|✅  | ❌ |
+|[PDB](https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html)| `chemical/x-pdb`|✅  | 🏗️ |
+|[MOL](https://en.wikipedia.org/wiki/Chemical_table_file#Molfile)|`chemical/x-mdl-molfile` |✅  | 🏗️ |
+|[MOL2](https://paulbourke.net/dataformats/mol2/) (TRIPOS)| `chemical/x-mol2`|✅  | 🏗️ |
+|[XYZ](https://en.wikipedia.org/wiki/XYZ_file_format)|`chemical/x-xyz` |✅  | 🏗️ |
+
+✅ = implemented 🏗️ = planned ❌ = not available
 
 ## Example
 ```rust
