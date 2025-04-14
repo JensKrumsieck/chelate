@@ -1,4 +1,5 @@
-//! Functions for parsing TRIPOS MOL2 files (TRIPOS now is Certara)
+//! Functions for parsing TRIPOS MOL2 files (TRIPOS now is Certara) (chemical/x-mol2)
+//! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};

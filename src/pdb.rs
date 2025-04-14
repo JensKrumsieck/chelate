@@ -1,4 +1,4 @@
-//! Functions for parsing PDB files
+//! Functions for parsing PDB files (chemical/x-pdb)
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
 use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom};
