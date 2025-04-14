@@ -16,7 +16,11 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let y = iter.next()?.parse().ok()?;
     let z = iter.next()?.parse().ok()?;
     *atom_count += 1;
-    Some(Atom::new(*atom_count, atomic_number as u8, x, y, z))
+
+    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    atom.name = symbol.to_string();
+
+    Some(atom)
 }
 
 /// Parses an XYZ file and returns a vector of `Atom` objects.

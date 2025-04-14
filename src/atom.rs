@@ -34,7 +34,7 @@ impl DerefMut for Atom {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AtomData {
     pub name: String,
     pub resname: String,
@@ -42,6 +42,19 @@ pub struct AtomData {
     pub chain: char,
     pub disorder_group: usize,
     pub occupancy: f32,
+}
+
+impl Default for AtomData {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            resname: "UNK".to_string(),
+            resid: Default::default(),
+            chain: Default::default(),
+            disorder_group: Default::default(),
+            occupancy: 1.0,
+        }
+    }
 }
 
 pub(crate) static ATOMIC_SYMBOLS: [&str; 118] = [

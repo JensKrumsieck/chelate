@@ -20,7 +20,11 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
     *atom_count += 1;
-    Some(Atom::new(*atom_count, atomic_number as u8, x, y, z))
+
+    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    atom.name = symbol.to_string();
+    
+    Some(atom)
 }
 
 /// Parses a single line of an MOL file and returns a `Bond` object.

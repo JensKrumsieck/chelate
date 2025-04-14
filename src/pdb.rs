@@ -37,8 +37,19 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
     let x = line[30..38].trim().parse().ok()?;
     let y = line[38..46].trim().parse().ok()?;
     let z = line[46..54].trim().parse().ok()?;
+    let chain = line[21..22].trim().parse().unwrap_or_default();
+    let resname = line[17..20].to_string();
+    let resid = line[22..26].trim().parse().unwrap_or_default();
+    let occ = line[54..60].trim().parse().unwrap_or(1.0);
 
-    Some(Atom::new(id, atomic_number as u8, x, y, z))
+    let mut atom = Atom::new(id, atomic_number as u8, x, y, z);
+    atom.chain = chain;
+    atom.resname = resname;
+    atom.resid = resid;
+    atom.occupancy = occ;
+    atom.name = symbol.to_string();
+
+    Some(atom)
 }
 
 /// Parses an XYZ file and returns a vector of `Atom` objects.
