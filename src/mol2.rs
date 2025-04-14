@@ -2,7 +2,7 @@
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::normalize_symbol;
-use crate::{ATOMIC_SYMBOLS, Atom, Bond};
+use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
