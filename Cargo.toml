@@ -1,6 +1,6 @@
 [package]
 name = "chelate"
-description = "Parser for a bunch of molecule file formats"
+description = "Parser for a bunch of molecular file formats"
 version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/JensKrumsieck/chelate"
