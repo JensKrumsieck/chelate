@@ -1,3 +1,9 @@
+//! Functions for parsing CIF files
+//! Multiple types of CIF files are supported:
+//! - CCDC/IUCr CIF: <https://www.iucr.org/resources/cif> (chemical/x-cif)
+//! - PDBx/mmCIF: <https://mmcif.wwpdb.org/docs/user-guide/guide.html> (chemical/x-mmcif)
+//! 
+//! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use nalgebra::{Matrix4, Vector3};

@@ -1,3 +1,5 @@
+//! Functions for parsing TRIPOS MOL2 files (TRIPOS now is Certara)
+//! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};

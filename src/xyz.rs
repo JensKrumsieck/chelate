@@ -1,3 +1,6 @@
+//! Functions for parsing XYZ files (chemical/x-xyz)
+//! XYZ format is the simplest file format just containing an atom symbol and XYZ cartesian coordinates
+//! Documentation can be found here <https://en.wikipedia.org/wiki/XYZ_file_format>
 use crate::{ATOMIC_SYMBOLS, Atom};
 use std::io::{self, BufRead, BufReader, Read};
 

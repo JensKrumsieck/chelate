@@ -1,3 +1,5 @@
+//! Functions for parsing MDL MOL files (chemical/x-mdl-molfile)
+//! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
 use super::normalize_symbol;
 use crate::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
