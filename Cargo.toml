@@ -9,8 +9,19 @@ authors = ["Jens Krumsieck"]
 keywords = ["chemistry", "molecule"]
 categories = ["science"]
 
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.playground]
+features = ["default"]
+
+[features]
+default = ["petgraph"]
+petgraph = ["dep:petgraph"]
+
 [dependencies]
 nalgebra = "0.33.2"
+petgraph = { version = "0.8.1", optional = true }
 
 [dev-dependencies]
 approx = "0.5.1"

@@ -1,7 +1,12 @@
 use nalgebra::Vector3;
+#[cfg(feature = "petgraph")]
+use petgraph::{Graph, Undirected};
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug)]
+#[cfg(feature = "petgraph")]
+pub type Molecule = Graph<Atom, Bond, Undirected>;
+
+#[derive(Debug, Default, PartialEq)]
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
@@ -34,7 +39,7 @@ impl DerefMut for Atom {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct AtomData {
     pub name: String,
     pub resname: String,
@@ -84,5 +89,14 @@ impl Bond {
             order,
             is_aromatic,
         }
+    }
+}
+
+#[cfg(feature = "petgraph")]
+impl petgraph::IntoWeightedEdge<Bond> for Bond {
+    type NodeId = u32;
+
+    fn into_weighted_edge(self) -> (Self::NodeId, Self::NodeId, Bond) {
+        (self.atom1 as u32, self.atom2 as u32, self)
     }
 }
