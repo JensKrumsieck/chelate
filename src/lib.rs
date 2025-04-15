@@ -14,7 +14,6 @@ pub mod mol2;
 pub mod pdb;
 pub mod xyz;
 
-
 /// Parses a file based on the FileType and returns a Molecule type.
 /// # Examples
 /// ```
@@ -96,4 +95,48 @@ fn normalize_symbol(symbol: &str) -> String {
         String::new()
     };
     normalized_symbol
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("data/4n4n.cif", 15450, 14968)]
+    #[case("data/4r21.cif", 6752, 6902)]
+    #[case("data/147288.cif", 206, 230)]
+    #[case("data/1484829.cif", 466, 528)]
+    #[case("data/cif_noTrim.cif", 79, 89)]
+    #[case("data/cif.cif", 79, 89)]
+    #[case("data/CuHETMP.cif", 85, 92)]
+    #[case("data/ligand.cif", 44, 46)]
+    #[case("data/mmcif.cif", 1291, 1256)]
+    #[case("data/benzene_3d.mol", 12, 12)]
+    #[case("data/benzene_arom.mol", 12, 12)]
+    #[case("data/benzene.mol", 6, 6)]
+    #[case("data/tep.mol", 46, 50)]
+    #[case("data/corrole.mol", 37, 41)]
+    #[case("data/0001.mol2", 15450, 14898)]
+    #[case("data/benzene.mol2", 12, 12)]
+    #[case("data/myo.mol2", 1437, 1312)]
+    #[case("data/ptcor.mol2", 129, 127)]
+    #[case("data/tep.mol2", 46, 50)]
+    #[case("data/VATTOC.mol2", 130, 146)]
+    #[case("data/oriluy.pdb", 130, 151)]
+    #[case("data/2spl.pdb", 1437, 1314)]
+    #[case("data/1hv4.pdb", 9288, 9562)]
+    #[case("data/0001.pdb", 15450, 14968)]
+    #[case("data/cif.xyz", 102, 155)]
+    #[case("data/mescho.xyz", 23, 23)]
+    #[case("data/porphyrin.xyz", 37, 0)]
+    fn test_molecule(
+        #[case] filename: &str,
+        #[case] atoms_count: usize,
+        #[case] bonds_count: usize,
+    ) {
+        let mol = molecule_from_file(filename).unwrap();
+        assert_eq!(mol.node_count(), atoms_count);
+        assert_eq!(mol.edge_count(), bonds_count);
+    }
 }

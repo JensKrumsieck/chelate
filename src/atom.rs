@@ -14,8 +14,15 @@ pub trait ToMolecule<T> {
 #[cfg(feature = "petgraph")]
 impl ToMolecule<Self> for (Vec<Atom>, Vec<Bond>) {
     /// Takes a Tuple of atoms and bonds and converts it into a Molecule (UnGraph)
+    /// Be aware: If no bonds can be found, this method will try to generate them!
     fn to_molecule(self) -> Molecule {
-        let (atoms, bonds) = self;
+        let (atoms, mut bonds) = self;
+
+        //generate bonds if none
+        if bonds.is_empty() {
+            bonds = Bond::from_atoms(&atoms);
+        }
+
         let mut mol = Molecule::with_capacity(atoms.len(), bonds.len());
         for atom in atoms {
             mol.add_node(atom);
@@ -141,18 +148,53 @@ impl Bond {
     }
 
     pub fn from_atoms(atoms: &[Atom]) -> Vec<Self> {
-        let mut bonds = vec![];
-        for i in 0..atoms.len() {
-            for j in (i + 1)..atoms.len() {
-                if i == j || atoms[i].bond_to_by_covalent_radii(&atoms[j], 25) {
-                    continue;
-                } else {
-                    bonds.push(Bond::new(&atoms[i], &atoms[j], 1, false));
-                }
+        #[cfg(feature = "rayon")]
+        if atoms.len() < 600 {
+            bond_from_atoms(atoms)
+        } else {
+            bond_from_atoms_parallel(atoms)
+        }
+
+        #[cfg(not(feature = "rayon"))]
+        bond_from_atoms(atoms)
+    }
+}
+
+fn bond_from_atoms(atoms: &[Atom]) -> Vec<Bond> {
+    let mut bonds = Vec::with_capacity(atoms.len() * 3);
+
+    for i in 0..atoms.len() {
+        let atom_i = unsafe { atoms.get_unchecked(i) };
+        for j in i+1..atoms.len() {
+            let atom_j = unsafe { atoms.get_unchecked(j) };
+            if atom_i.bond_to_by_covalent_radii(atom_j, 25) {
+                bonds.push(Bond::new(atom_i, atom_j, 1, false));
             }
         }
-        bonds
     }
+    
+    bonds
+}
+
+#[cfg(feature = "rayon")]
+fn bond_from_atoms_parallel(atoms: &[Atom]) -> Vec<Bond> {
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
+    let n = atoms.len();
+    (0..n)
+        .into_par_iter()
+        .flat_map_iter(|i| {
+            let atom_i = &atoms[i];
+            (i + 1..n).filter_map(move |j| {
+                let atom_j = &atoms[j];
+                if !atom_i.bond_to_by_covalent_radii(atom_j, 25) {
+                    Some(Bond::new(atom_i, atom_j, 1, false))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
 }
 
 #[cfg(feature = "petgraph")]
