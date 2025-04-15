@@ -35,7 +35,9 @@ impl ToMolecule<Self> for (Vec<Atom>, Vec<Bond>) {
 
 #[cfg(feature = "petgraph")]
 impl ToMolecule<Self> for Vec<Atom> {
-    /// Takes a Vector of Atoms and calculates Bonds itself and converts it into a Molecule (UnGraph)
+    /// Converts a tuple of atoms and bonds into a `Molecule`.
+    ///
+    /// If no bonds are provided, they will be generated automatically.
     fn to_molecule(self) -> Molecule {
         let bonds = Bond::from_atoms(&self);
         (self, bonds).to_molecule()
@@ -64,8 +66,8 @@ impl Atom {
     pub fn bond_to_by_covalent_radii(&self, rhs: &Atom, delta: f32) -> bool {
         let dist = nalgebra::distance_squared(&self.coord, &rhs.coord);
 
-        //fast check -> take highest covalent radius (260+260+100)/100
-        const FAST_FAIL: f32 = 6.2;
+        //fast check -> take highest covalent radius ~((260+260+100)/100)²
+        const FAST_FAIL: f32 = 38.0;
         if dist > FAST_FAIL {
             return false;
         }
