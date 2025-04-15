@@ -18,10 +18,10 @@ pub mod xyz;
 /// # Examples
 /// ```
 /// use chelate;
-/// let mol = chelate::molecule_from_file("data/147288.cif").unwrap();
+/// let mol = chelate::molecule_from_file("data/oriluy.pdb").unwrap();
 ///
-/// assert_eq!(mol.node_count(), 206);
-/// assert_eq!(mol.edge_count(), 230);
+/// assert_eq!(mol.node_count(), 130);
+/// assert_eq!(mol.edge_count(), 151);
 /// ```
 #[cfg(feature = "petgraph")]
 pub fn molecule_from_file(filename: impl AsRef<Path>) -> io::Result<Molecule> {

@@ -19,6 +19,7 @@ Chelate is a simple parser for a bunch of molecular file formats.
 ✅ = implemented 🏗️ = planned ❌ = not available
 
 ## Example
+### Simple Example returning `(Vec<Atom>, Vec<Bond>)`
 ```rust
 use chelate;
 
@@ -26,6 +27,16 @@ let (atoms, bonds) = chelate::from_file("data/147288.cif").unwrap();
 
 assert_eq!(atoms.len(), 206);
 assert_eq!(bonds.len(), 230);
+```
+### Example using `petgraph` returning `Graph<Atom, Edge, Undirected>`
+Formats that do not have bond information like xyz are able to generate `Bond` objects when `petgraph` feature is active (default).
+```rust
+use chelate;
+//its a Molecule (type alias for Graph<Atom, Edge, Undirected>)
+let mol = chelate::molecule_from_file("data/oriluy.pdb").unwrap(); 
+
+assert_eq!(mol.node_count(), 130);
+assert_eq!(mol.edge_count(), 151);
 ```
 
 ## Installation
@@ -35,5 +46,5 @@ cargo add chelate
 ```
 Or add the following line to your Cargo.toml:
 ```toml
-chelate = "0.1.0"
+chelate = "0.2.0"
 ```
