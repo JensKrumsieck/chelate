@@ -8,10 +8,10 @@ use std::io::{self, BufRead, BufReader, Read};
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
 /// Example line: `     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500`
-fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let mut iter = line.split_whitespace();
 
-    let id = iter.next()?.parse().ok()?;
+    iter.next()?; //discard id
     let name = iter.next()?;
     let x = iter.next()?.parse().ok()?;
     let y = iter.next()?.parse().ok()?;
@@ -48,8 +48,9 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
         .iter()
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
+    *atom_count += 1;
 
-    let mut atom = Atom::new(id, atomic_number as u8, x, y, z);
+    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     atom.chain = chain_id;
     atom.resname = residue.to_string();
     atom.resid = res_id;
@@ -110,6 +111,8 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(atoms[0].name, "Pt1");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+    let mut atom_count = 0;
+
     let mut atoms = Vec::new();
     let mut bonds = Vec::new();
 
@@ -144,7 +147,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
         }
 
         if pick_atoms {
-            if let Some(atom) = parse_atom_line(&line) {
+            if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
                 atoms.push(atom);
             }
         } else if pick_bonds {

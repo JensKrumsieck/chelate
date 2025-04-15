@@ -25,14 +25,12 @@ use std::io::{self, BufRead, BufReader, Read};
 /// | 61 - 66  | Real(6.2)   | tempFactor   | Temperature factor.                         |
 /// | 77 - 78  | LString(2)  | element      | Element symbol, right-justified.            |
 /// | 79 - 80  | LString(2)  | charge       | Charge on the atom.                         |
-fn parse_atom_line(line: &str) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     let symbol = line[76..78].trim();
     let atomic_number = ATOMIC_SYMBOLS
         .iter()
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
-
-    let id = line[6..11].trim().parse().ok()?;
 
     let x = line[30..38].trim().parse().ok()?;
     let y = line[38..46].trim().parse().ok()?;
@@ -42,7 +40,9 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
     let resid = line[22..26].trim().parse().unwrap_or_default();
     let occ = line[54..60].trim().parse().unwrap_or(1.0);
 
-    let mut atom = Atom::new(id, atomic_number as u8, x, y, z);
+    *atom_count += 1;
+
+    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     atom.chain = chain;
     atom.resname = resname;
     atom.resid = resid;
@@ -73,6 +73,8 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
 /// assert_eq!(atoms[0].name, "N");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
+    let mut atom_count = 0;
+    
     let mut atoms = Vec::new();
     for line in reader.lines() {
         let line = line?;
@@ -80,7 +82,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
         if !line.starts_with("ATOM") && !line.starts_with("HETATM") {
             continue;
         }
-        if let Some(atom) = parse_atom_line(&line) {
+        if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
             atoms.push(atom);
         }
     }

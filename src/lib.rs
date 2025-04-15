@@ -136,7 +136,6 @@ mod tests {
         #[case] bonds_count: usize,
     ) {
         let mol = molecule_from_file(filename).unwrap();
-
         //filter disorder same as in cif.rs
         let sub = mol.filter_map(
             |_, a| {
