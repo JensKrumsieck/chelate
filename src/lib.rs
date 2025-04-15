@@ -129,14 +129,23 @@ mod tests {
     #[case("data/0001.pdb", 15450, 14968)]
     #[case("data/cif.xyz", 102, 155)]
     #[case("data/mescho.xyz", 23, 23)]
-    #[case("data/porphyrin.xyz", 37, 0)]
+    #[case("data/porphyrin.xyz", 37, 44)]
     fn test_molecule(
         #[case] filename: &str,
         #[case] atoms_count: usize,
         #[case] bonds_count: usize,
     ) {
         let mol = molecule_from_file(filename).unwrap();
-        assert_eq!(mol.node_count(), atoms_count);
-        assert_eq!(mol.edge_count(), bonds_count);
+
+        //filter disorder same as in cif.rs
+        let sub = mol.filter_map(
+            |_, a| {
+                if a.disorder_group != 2 { Some(a) } else { None }
+            },
+            |_, b| Some(b),
+        );
+        
+        assert_eq!(sub.node_count(), atoms_count);
+        assert_eq!(sub.edge_count(), bonds_count);
     }
 }

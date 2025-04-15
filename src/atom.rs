@@ -61,12 +61,19 @@ impl Atom {
     }
 
     /// Checks whether atom is bond to `rhs` by their covalent radii while allowing a delta
-    pub fn bond_to_by_covalent_radii(&self, rhs: &Atom, delta: u32) -> bool {
-        let check = (COVALENT_RADII_PM[self.atomic_number as usize]
-            + COVALENT_RADII_PM[rhs.atomic_number as usize]
-            + delta) as f32
-            / 100.0;
+    pub fn bond_to_by_covalent_radii(&self, rhs: &Atom, delta: f32) -> bool {
         let dist = nalgebra::distance_squared(&self.coord, &rhs.coord);
+
+        //fast check -> take highest covalent radius (260+260+100)/100
+        const FAST_FAIL: f32 = 6.2;
+        if dist > FAST_FAIL {
+            return false;
+        }
+
+        let check = (COVALENT_RADII_PM[self.atomic_number as usize - 1] as f32
+            + COVALENT_RADII_PM[rhs.atomic_number as usize - 1] as f32
+            + delta)
+            / 100.0;
         dist < check * check
     }
 }
@@ -164,15 +171,14 @@ fn bond_from_atoms(atoms: &[Atom]) -> Vec<Bond> {
     let mut bonds = Vec::with_capacity(atoms.len() * 3);
 
     for i in 0..atoms.len() {
-        let atom_i = unsafe { atoms.get_unchecked(i) };
-        for j in i+1..atoms.len() {
-            let atom_j = unsafe { atoms.get_unchecked(j) };
-            if atom_i.bond_to_by_covalent_radii(atom_j, 25) {
+        let atom_i = &atoms[i];
+        for atom_j in &atoms[i + 1..] {
+            if atom_i.bond_to_by_covalent_radii(atom_j, 25.0) {
                 bonds.push(Bond::new(atom_i, atom_j, 1, false));
             }
         }
     }
-    
+
     bonds
 }
 
@@ -187,7 +193,7 @@ fn bond_from_atoms_parallel(atoms: &[Atom]) -> Vec<Bond> {
             let atom_i = &atoms[i];
             (i + 1..n).filter_map(move |j| {
                 let atom_j = &atoms[j];
-                if !atom_i.bond_to_by_covalent_radii(atom_j, 25) {
+                if atom_i.bond_to_by_covalent_radii(atom_j, 25.0) {
                     Some(Bond::new(atom_i, atom_j, 1, false))
                 } else {
                     None

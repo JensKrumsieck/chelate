@@ -32,7 +32,7 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
         .position(|&s| s == normalize_symbol(symbol))?
         + 1;
 
-    let id = line[8..11].trim().parse().ok()?;
+    let id = line[6..11].trim().parse().ok()?;
 
     let x = line[30..38].trim().parse().ok()?;
     let y = line[38..46].trim().parse().ok()?;
