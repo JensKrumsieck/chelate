@@ -1,4 +1,4 @@
-use atom::{Atom, Bond};
+use atom::{Atom, Bond, Molecule, ToMolecule};
 use std::{
     ffi::OsStr,
     fs::File,
@@ -13,6 +13,21 @@ pub mod mol;
 pub mod mol2;
 pub mod pdb;
 pub mod xyz;
+
+
+/// Parses a file based on the FileType and returns a Molecule type.
+/// # Examples
+/// ```
+/// use chelate;
+/// let mol = chelate::molecule_from_file("data/147288.cif").unwrap();
+///
+/// assert_eq!(mol.node_count(), 206);
+/// assert_eq!(mol.edge_count(), 230);
+/// ```
+#[cfg(feature = "petgraph")]
+pub fn molecule_from_file(filename: impl AsRef<Path>) -> io::Result<Molecule> {
+    Ok(from_file(filename)?.to_molecule())
+}
 
 /// Parses a file based on the FileType and returns a vector of `Atom` and a vector of `Bond` objects.
 /// # Examples

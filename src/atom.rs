@@ -1,4 +1,4 @@
-use nalgebra::Vector3;
+use nalgebra::{Point3, point};
 #[cfg(feature = "petgraph")]
 use petgraph::{Graph, Undirected};
 use std::ops::{Deref, DerefMut};
@@ -6,12 +6,41 @@ use std::ops::{Deref, DerefMut};
 #[cfg(feature = "petgraph")]
 pub type Molecule = Graph<Atom, Bond, Undirected>;
 
+#[cfg(feature = "petgraph")]
+pub trait ToMolecule<T> {
+    fn to_molecule(self) -> Molecule;
+}
+
+#[cfg(feature = "petgraph")]
+impl ToMolecule<Self> for (Vec<Atom>, Vec<Bond>) {
+    /// Takes a Tuple of atoms and bonds and converts it into a Molecule (UnGraph)
+    fn to_molecule(self) -> Molecule {
+        let (atoms, bonds) = self;
+        let mut mol = Molecule::with_capacity(atoms.len(), bonds.len());
+        for atom in atoms {
+            mol.add_node(atom);
+        }
+        mol.extend_with_edges(bonds);
+
+        mol
+    }
+}
+
+#[cfg(feature = "petgraph")]
+impl ToMolecule<Self> for Vec<Atom> {
+    /// Takes a Vector of Atoms and calculates Bonds itself and converts it into a Molecule (UnGraph)
+    fn to_molecule(self) -> Molecule {
+        let bonds = Bond::from_atoms(&self);
+        (self, bonds).to_molecule()
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
     pub data: Box<AtomData>,
-    pub coord: Vector3<f32>,
+    pub coord: Point3<f32>,
 }
 
 impl Atom {
@@ -19,9 +48,19 @@ impl Atom {
         Atom {
             id,
             atomic_number,
-            coord: Vector3::new(x, y, z),
+            coord: point![x, y, z],
             data: Default::default(),
         }
+    }
+
+    /// Checks whether atom is bond to `rhs` by their covalent radii while allowing a delta
+    pub fn bond_to_by_covalent_radii(&self, rhs: &Atom, delta: u32) -> bool {
+        let check = (COVALENT_RADII_PM[self.atomic_number as usize]
+            + COVALENT_RADII_PM[rhs.atomic_number as usize]
+            + delta) as f32
+            / 100.0;
+        let dist = nalgebra::distance_squared(&self.coord, &rhs.coord);
+        dist < check * check
     }
 }
 
@@ -73,6 +112,16 @@ pub(crate) static ATOMIC_SYMBOLS: [&str; 118] = [
     "Fl", "Mc", "Lv", "Ts", "Og",
 ];
 
+pub(crate) static COVALENT_RADII_PM: [u32; 118] = [
+    31, 28, 128, 96, 84, 77, 71, 66, 64, 58, 166, 141, 121, 111, 107, 105, 102, 106, 203, 176, 170,
+    160, 153, 139, 139, 132, 126, 124, 132, 122, 122, 122, 119, 120, 120, 116, 220, 195, 190, 175,
+    164, 154, 147, 146, 142, 139, 145, 144, 142, 139, 139, 138, 139, 140, 244, 215, 207, 204, 203,
+    201, 199, 198, 198, 196, 194, 192, 192, 189, 190, 187, 187, 175, 170, 162, 151, 144, 141, 136,
+    136, 132, 145, 146, 148, 140, 150, 150, 260, 221, 215, 206, 200, 196, 190, 187, 180, 169, 168,
+    168, 165, 167, 173, 176, 161, 157, 149, 143, 141, 134, 129, 128, 121, 122, 172, 171, 156, 162,
+    156, 157,
+];
+
 #[derive(Debug)]
 pub struct Bond {
     pub atom1: usize,
@@ -82,13 +131,27 @@ pub struct Bond {
 }
 
 impl Bond {
-    pub fn new(atom1: Atom, atom2: Atom, order: u8, is_aromatic: bool) -> Self {
+    pub fn new(atom1: &Atom, atom2: &Atom, order: u8, is_aromatic: bool) -> Self {
         Bond {
             atom1: atom1.id,
             atom2: atom2.id,
             order,
             is_aromatic,
         }
+    }
+
+    pub fn from_atoms(atoms: &[Atom]) -> Vec<Self> {
+        let mut bonds = vec![];
+        for i in 0..atoms.len() {
+            for j in (i + 1)..atoms.len() {
+                if i == j || atoms[i].bond_to_by_covalent_radii(&atoms[j], 25) {
+                    continue;
+                } else {
+                    bonds.push(Bond::new(&atoms[i], &atoms[j], 1, false));
+                }
+            }
+        }
+        bonds
     }
 }
 
@@ -97,6 +160,7 @@ impl petgraph::IntoWeightedEdge<Bond> for Bond {
     type NodeId = u32;
 
     fn into_weighted_edge(self) -> (Self::NodeId, Self::NodeId, Bond) {
-        (self.atom1 as u32, self.atom2 as u32, self)
+        //subtract 1 as atom ids start at 1 and index expects 0
+        (self.atom1 as u32 - 1, self.atom2 as u32 - 1, self)
     }
 }

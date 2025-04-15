@@ -55,7 +55,7 @@ fn parse_atom_line(
     atom_count: &mut usize,
     label_map: &mut HashMap<String, usize>,
     dialect: &CIFDialect,
-    fract_mtrx: &Matrix4<f32>,
+    fract_matrix: &Matrix4<f32>,
 ) -> Option<Atom> {
     let vec = line.split_whitespace().collect::<Vec<_>>();
 
@@ -103,7 +103,7 @@ fn parse_atom_line(
     label_map.insert(id.to_owned(), *atom_count);
     let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     if *dialect == CIFDialect::CCDC {
-        atom.coord = fract_mtrx.transform_vector(&atom.coord);
+        atom.coord = fract_matrix.transform_vector(&atom.coord.coords).into();
     }
     //additional info
     atom.disorder_group = disorder_group;

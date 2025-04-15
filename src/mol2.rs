@@ -2,7 +2,7 @@
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::normalize_symbol;
-use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond, Molecule};
+use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
@@ -84,36 +84,6 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
         order,
         is_aromatic,
     })
-}
-
-/// Parses a mol2 file and returns a `Molecule` as Undirected Graph. The `petgraph` feature needs to be active.
-/// Examples of what can be done with Graphs: <https://docs.rs/petgraph/latest/petgraph/>
-/// # Examples
-/// ```
-/// use chelate::mol2;
-/// use std::fs::File;
-/// use std::io::BufReader;
-/// use petgraph::algo::isomorphism::is_isomorphic;
-/// 
-/// let file = File::open("data/ptcor.mol2").unwrap();
-/// let reader = BufReader::new(file);
-/// 
-/// let mol = mol2::parse_molecule(reader).unwrap();
-/// assert_eq!(mol.node_count(), 129);
-/// assert_eq!(mol.edge_count(), 127);
-/// 
-/// // Example usage of petgraph algorithms
-/// assert!(is_isomorphic(&mol, &mol)); //true as per definition
-/// ```
-#[cfg(feature = "petgraph")]
-pub fn parse_molecule<P: Read>(reader: BufReader<P>) -> io::Result<Molecule> {
-    let (atoms, bonds) = parse(reader)?;
-    let mut mol = Molecule::with_capacity(atoms.len(), bonds.len());
-    for atom in atoms {
-        mol.add_node(atom);
-    }
-    mol.extend_with_edges(bonds);
-    Ok(mol)
 }
 
 /// Parses a mol2 file and returns a vector of `Atom` and a vector of `Bond` objects.
