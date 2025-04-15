@@ -57,7 +57,7 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
 /// ```
 /// use chelate::pdb;
 /// use std::fs::File;
-/// use nalgebra::Vector3;
+/// use nalgebra::Point3;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/0001.pdb").unwrap();
@@ -66,7 +66,7 @@ fn parse_atom_line(line: &str) -> Option<Atom> {
 ///
 /// assert_eq!(atoms.len(), 15450);
 /// assert_eq!(atoms[0].atomic_number, 7);
-/// assert_eq!(atoms[0].coord, Vector3::new(58.667, 69.671, 7.056));
+/// assert_eq!(atoms[0].coord, Point3::new(58.667, 69.671, 7.056));
 /// assert_eq!(atoms[0].resname, "ASP");
 /// assert_eq!(atoms[0].resid, 25);
 /// assert_eq!(atoms[0].occupancy, 1.0);

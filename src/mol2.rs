@@ -90,7 +90,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// # Examples
 /// ```
 /// use chelate::mol2;
-/// use nalgebra::Vector3;
+/// use nalgebra::Point3;
 /// use std::fs::File;
 /// use std::io::BufReader;
 ///
@@ -102,7 +102,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(bonds.len(), 127);
 ///
 /// assert_eq!(atoms[0].atomic_number, 78);
-/// assert_eq!(atoms[0].coord, Vector3::new(8.7088, 6.0412,5.1685));
+/// assert_eq!(atoms[0].coord, Point3::new(8.7088, 6.0412,5.1685));
 /// assert_eq!(atoms[0].resname, "RES");
 /// assert_eq!(atoms[0].resid, 1);
 /// assert_eq!(atoms[0].chain, '1');

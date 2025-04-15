@@ -138,7 +138,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// ```
 /// use chelate::cif;
 /// use std::fs::File;
-/// use nalgebra::Vector3;
+/// use nalgebra::Point3;
 /// use approx::relative_eq;
 /// use std::io::BufReader;
 ///
@@ -149,7 +149,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
 /// assert_eq!(atoms[0].atomic_number, 31);
-/// assert!(relative_eq!(atoms[0].coord, Vector3::new(11.377683611607571, 1.637743396392762, 3.827447754962335), epsilon = 1.0e-5));
+/// assert!(relative_eq!(atoms[0].coord, Point3::new(11.377683611607571, 1.637743396392762, 3.827447754962335), epsilon = 1.0e-5));
 /// assert_eq!(atoms[0].resname, "UNK");
 /// assert_eq!(atoms[0].resid, 0);
 /// assert_eq!(atoms[0].chain, char::default());

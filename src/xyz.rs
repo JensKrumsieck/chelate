@@ -28,7 +28,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 /// ```
 /// use chelate::xyz;
 /// use std::fs::File;
-/// use nalgebra::Vector3;
+/// use nalgebra::Point3;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/mescho.xyz").unwrap();
@@ -37,7 +37,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 ///
 /// assert_eq!(atoms.len(), 23);
 /// assert_eq!(atoms[0].atomic_number, 6);
-/// assert_eq!(atoms[0].coord, Vector3::new(0.85246046633891, -1.08114766176821, 0.02536743820348));
+/// assert_eq!(atoms[0].coord, Point3::new(0.85246046633891, -1.08114766176821, 0.02536743820348));
 /// assert_eq!(atoms[0].resname, "UNK");
 /// assert_eq!(atoms[0].resid, 0);
 /// assert_eq!(atoms[0].chain, char::default());
