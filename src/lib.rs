@@ -13,6 +13,7 @@ pub mod mol;
 pub mod mol2;
 pub mod pdb;
 pub mod xyz;
+pub mod error;
 
 /// Parses a file based on the FileType and returns a Molecule type.
 /// # Examples

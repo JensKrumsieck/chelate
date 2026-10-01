@@ -27,15 +27,23 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     Some(atom)
 }
 
+/// Parses the counts line of a MOL file and returns the number of atoms and bonds.
+/// The fields are 3 characters wide and run together for counts above 99.
+/// Example line: `101100  0  0  0  0  0  0  0  0999 V2000` (101 atoms, 100 bonds)
+fn parse_counts_line(line: &str) -> Option<(usize, usize)> {
+    let atoms = line.get(0..3)?.trim().parse().ok()?;
+    let bonds = line.get(3..6)?.trim().parse().ok()?;
+    Some((atoms, bonds))
+}
+
 /// Parses a single line of an MOL file and returns a `Bond` object.
 /// The line should contain the atoms ids and the bond order where 4 is aromatic bond.
-/// Example line: `  1  2  2  0  0  0  0`
+/// The fields are 3 characters wide and run together for atom ids above 99.
+/// Example lines: `  1  2  2  0  0  0  0`, `100101  1  0  0  0  0`
 fn parse_bond_line(line: &str) -> Option<Bond> {
-    let mut iter = line.split_whitespace();
-
-    let atom1 = iter.next()?.parse().ok()?;
-    let atom2 = iter.next()?.parse().ok()?;
-    let mut order = iter.next()?.parse().ok()?;
+    let atom1 = line.get(0..3)?.trim().parse().ok()?;
+    let atom2 = line.get(3..6)?.trim().parse().ok()?;
+    let mut order = line.get(6..9)?.trim().parse().ok()?;
     let is_aromatic = order == 4;
     if is_aromatic {
         order = 1;
@@ -74,18 +82,22 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
     let mut atom_count = 0;
 
-    let mut atoms = Vec::new();
-    let mut bonds = Vec::new();
-    for line in reader.lines().skip(4) {
-        let line = line?;
-        if line.contains("M  END") {
-            break;
-        }
+    // the counts line follows the 3 header lines and tells how many atom and bond lines follow
+    let mut lines = reader.lines().skip(3);
+    let counts_line = lines.next().transpose()?.unwrap_or_default();
+    let (atom_len, bond_len) = parse_counts_line(&counts_line)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid counts line"))?;
 
-        if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
+    let mut atoms = Vec::with_capacity(atom_len);
+    for line in lines.by_ref().take(atom_len) {
+        if let Some(atom) = parse_atom_line(&line?, &mut atom_count) {
             atoms.push(atom);
         }
-        if let Some(bond) = parse_bond_line(&line) {
+    }
+
+    let mut bonds = Vec::with_capacity(bond_len);
+    for line in lines.take(bond_len) {
+        if let Some(bond) = parse_bond_line(&line?) {
             bonds.push(bond);
         }
     }
@@ -111,5 +123,30 @@ mod tests {
 
         assert_eq!(atoms.len(), atom_len);
         assert_eq!(bonds.len(), bond_len);
+    }
+
+    #[test]
+    fn test_mol_more_than_99_atoms() {
+        // carbon chain with 101 atoms, the last bond line reads `100101  1  0  0  0  0`
+        let mut mol = String::from("chain\n\n\n101100  0  0  0  0  0  0  0  0999 V2000\n");
+        for i in 0..101 {
+            mol += &format!(
+                "{:10.4}{:10.4}{:10.4} C   0  0  0  0  0  0  0  0  0  0  0  0\n",
+                i as f32 * 1.5,
+                0.0,
+                0.0
+            );
+        }
+        for i in 1..101 {
+            mol += &format!("{:3}{:3}  1  0  0  0  0\n", i, i + 1);
+        }
+        mol += "M  END\n";
+
+        let (atoms, bonds) = parse(BufReader::new(mol.as_bytes())).unwrap();
+
+        assert_eq!(atoms.len(), 101);
+        assert_eq!(bonds.len(), 100);
+        let last = bonds.last().unwrap();
+        assert_eq!((last.atom1, last.atom2, last.order), (100, 101, 1));
     }
 }

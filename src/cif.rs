@@ -182,6 +182,20 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             continue;
         }
 
+        if line_trimmed.starts_with("data_") {
+            //each data block is a separate structure with its own cell, columns and labels
+            dialect = CIFDialect::default();
+            pick_atoms = false;
+            pick_bonds = false;
+            headers = CIFAtomHeader::default();
+            header_idx = 0;
+            param_idx = 0;
+            cell_params = Default::default();
+            fract_mtrx = Default::default();
+            map.clear();
+            continue;
+        }
+
         if dialect == CIFDialect::Undefined {
             dialect = set_dialect(line_trimmed);
         } else if dialect == CIFDialect::CCDC {
@@ -225,10 +239,9 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             ) {
                 atoms.push(atom);
             }
-        } else if pick_bonds
-            && let Some(bond) = parse_bond_line(line_trimmed, &map, &dialect) {
-                bonds.push(bond);
-            }
+        } else if pick_bonds && let Some(bond) = parse_bond_line(line_trimmed, &map, &dialect) {
+            bonds.push(bond);
+        }
     }
 
     Ok((atoms, bonds))
@@ -345,5 +358,31 @@ mod tests {
                 .count(),
             bond_len
         );
+    }
+
+    #[test]
+    fn test_cif_multiple_data_blocks() {
+        let parse_file =
+            |filename: &str| parse(BufReader::new(File::open(filename).unwrap())).unwrap();
+        let (atoms1, bonds1) = parse_file("data/147288.cif");
+        let (atoms2, bonds2) = parse_file("data/cif.cif");
+
+        let file = File::open("data/147288.cif")
+            .unwrap()
+            .chain(File::open("data/cif.cif").unwrap());
+        let (atoms, bonds) = parse(BufReader::new(file)).unwrap();
+
+        assert_eq!(atoms.len(), atoms1.len() + atoms2.len());
+        assert_eq!(bonds.len(), bonds1.len() + bonds2.len());
+        //second block uses its own cell parameters
+        for (atom, expected) in atoms[atoms1.len()..].iter().zip(&atoms2) {
+            assert_eq!(atom.name, expected.name);
+            assert_eq!(atom.coord, expected.coord);
+        }
+        //bonds of the second block refer to atoms of the second block
+        for (bond, expected) in bonds[bonds1.len()..].iter().zip(&bonds2) {
+            assert_eq!(bond.atom1, expected.atom1 + atoms1.len());
+            assert_eq!(bond.atom2, expected.atom2 + atoms1.len());
+        }
     }
 }
