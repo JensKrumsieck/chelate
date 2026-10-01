@@ -89,12 +89,11 @@ pub fn parse<P: Read>(reader: BufReader<P>, type_: FileType) -> io::Result<(Vec<
 }
 
 fn normalize_symbol(symbol: &str) -> String {
-    let normalized_symbol = if let Some(first_char) = symbol.chars().next() {
+    if let Some(first_char) = symbol.chars().next() {
         first_char.to_uppercase().collect::<String>() + &symbol[1..].to_lowercase()
     } else {
         String::new()
-    };
-    normalized_symbol
+    }
 }
 
 #[cfg(test)]
@@ -143,7 +142,7 @@ mod tests {
             },
             |_, b| Some(b),
         );
-        
+
         assert_eq!(sub.node_count(), atoms_count);
         assert_eq!(sub.edge_count(), bonds_count);
     }

@@ -150,10 +150,8 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)
             if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
                 atoms.push(atom);
             }
-        } else if pick_bonds {
-            if let Some(bond) = parse_bond_line(&line) {
-                bonds.push(bond);
-            }
+        } else if pick_bonds && let Some(bond) = parse_bond_line(&line) {
+            bonds.push(bond);
         }
     }
     Ok((atoms, bonds))
