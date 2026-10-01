@@ -248,7 +248,7 @@ fn set_dialect(line: &str) -> CIFDialect {
 }
 
 fn set_header_indices(header: &str, index: usize, headers: &mut CIFAtomHeader) {
-    match header {
+    match header.to_ascii_lowercase() {
         h if h.contains("symbol") => headers.symbol = Some(index),
         h if h.contains("fract_x") || h.contains("Cartn_x") => {
             headers.x = Some(index);
