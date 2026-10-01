@@ -217,3 +217,28 @@ impl petgraph::IntoWeightedEdge<Bond> for Bond {
         (self.atom1 as u32 - 1, self.atom2 as u32 - 1, self)
     }
 }
+
+#[cfg(all(test, feature = "petgraph"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_molecule_skips_bonds_to_missing_atoms() {
+        let atoms = vec![
+            Atom::new(1, 6, 0.0, 0.0, 0.0),
+            Atom::new(2, 6, 1.5, 0.0, 0.0),
+        ];
+        let bond = |atom1, atom2| Bond {
+            atom1,
+            atom2,
+            order: 1,
+            is_aromatic: false,
+        };
+        let bonds = vec![bond(1, 2), bond(0, 1), bond(2, 4_000_000_000)];
+
+        let mol = (atoms, bonds).to_molecule();
+
+        assert_eq!(mol.node_count(), 2);
+        assert_eq!(mol.edge_count(), 1);
+    }
+}

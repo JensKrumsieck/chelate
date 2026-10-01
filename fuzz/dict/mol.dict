@@ -1,0 +1,11 @@
+# MOL V2000 tokens, fields are 3 (counts, bonds) or 10 (coordinates) characters wide
+"V2000"
+"V3000"
+"M  END"
+"M  CHG"
+"999"
+"100101"
+"  1  2  1  0"
+"    0.0000"
+" C   0  0"
+" Cl  0  0"

@@ -179,4 +179,14 @@ mod tests {
         assert_eq!(atoms.len(), atom_len);
         assert_eq!(bonds.len(), bond_len);
     }
+
+    #[test]
+    fn test_mol2_non_ascii_residue() {
+        let mol2 = "@<TRIPOS>MOLECULE\nx\n@<TRIPOS>ATOM\n 1 C1 0.0 0.0 0.0 C.3 1 é1\n";
+
+        let (atoms, _) = parse(BufReader::new(mol2.as_bytes())).unwrap();
+
+        assert_eq!(atoms[0].resname, "é");
+        assert_eq!(atoms[0].resid, 1);
+    }
 }

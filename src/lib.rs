@@ -150,4 +150,13 @@ mod tests {
         assert_eq!(sub.node_count(), atoms_count);
         assert_eq!(sub.edge_count(), bonds_count);
     }
+
+    #[rstest]
+    #[case("cu", "Cu")]
+    #[case("CL", "Cl")]
+    #[case("ùX", "Ùx")]
+    #[case("", "")]
+    fn test_normalize_symbol(#[case] symbol: &str, #[case] expected: &str) {
+        assert_eq!(normalize_symbol(symbol), expected);
+    }
 }

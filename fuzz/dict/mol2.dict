@@ -1,0 +1,12 @@
+# TRIPOS MOL2 record types and atom/bond types
+"@<TRIPOS>MOLECULE"
+"@<TRIPOS>ATOM"
+"@<TRIPOS>BOND"
+"@<TRIPOS>SUBSTRUCTURE"
+"C.3"
+"C.ar"
+"N.am"
+"Du"
+"ar"
+"am"
+"RES1"

@@ -1,0 +1,13 @@
+# PDB record names and fixed-width fields
+"ATOM  "
+"HETATM"
+"CONECT"
+"MODEL "
+"ENDMDL"
+"END"
+" CA "
+"CA  "
+"1HB "
+"HG21"
+"  1.00"
+"  11.104"
