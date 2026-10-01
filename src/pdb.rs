@@ -82,7 +82,7 @@ fn element_from_atom_name(name: &str) -> Option<&str> {
     }
 }
 
-/// Parses an XYZ file and returns a vector of `Atom` objects.
+/// Parses an PDB file and returns a vector of `Atom` objects.
 /// # Examples
 /// ```
 /// use chelate::pdb;
