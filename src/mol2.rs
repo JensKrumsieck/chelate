@@ -121,7 +121,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
     let mut pick_bonds = false;
 
     for line in reader.lines().skip_while(|s| {
-        s.as_ref()
+        !s.as_ref()
             .unwrap_or(&String::from(""))
             .contains("@<TRIPOS>ATOM")
     }) {
