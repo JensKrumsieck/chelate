@@ -2,7 +2,8 @@
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
 use super::normalize_symbol;
 use crate::atom::{ATOMIC_SYMBOLS, Atom};
-use std::io::{self, BufRead, BufReader, Read};
+use crate::error::FileError;
+use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of a PDB file and returns an `Atom` object.
 /// Accoding to the PDB format specification, the line should contain the atomic symbol followed by the x, y, and z coordinates.
@@ -101,7 +102,7 @@ fn element_from_atom_name(name: &str) -> Option<&str> {
 /// assert_eq!(atoms[0].occupancy, 1.0);
 /// assert_eq!(atoms[0].name, "N");
 /// ```
-pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<Vec<Atom>> {
+pub fn parse<P: Read>(reader: BufReader<P>) -> Result<Vec<Atom>, FileError> {
     let mut atom_count = 0;
 
     let mut atoms = Vec::new();

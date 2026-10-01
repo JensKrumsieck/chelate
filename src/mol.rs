@@ -2,7 +2,8 @@
 //! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
 use super::normalize_symbol;
 use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
-use std::io::{self, BufRead, BufReader, Read};
+use crate::error::{FileError, ParseError};
+use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of an MOL file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
@@ -79,14 +80,14 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(atoms[0].occupancy, 1.0);
 /// assert_eq!(atoms[0].name, "N");
 /// ```
-pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let mut atom_count = 0;
 
     // the counts line follows the 3 header lines and tells how many atom and bond lines follow
     let mut lines = reader.lines().skip(3);
     let counts_line = lines.next().transpose()?.unwrap_or_default();
     let (atom_len, bond_len) = parse_counts_line(&counts_line)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid counts line"))?;
+        .ok_or_else(|| ParseError::new("Invalid counts line").with_line(4))?;
 
     let mut atoms = Vec::with_capacity(atom_len);
     for line in lines.by_ref().take(atom_len) {
@@ -148,5 +149,20 @@ mod tests {
         assert_eq!(bonds.len(), 100);
         let last = bonds.last().unwrap();
         assert_eq!((last.atom1, last.atom2, last.order), (100, 101, 1));
+    }
+
+    #[test]
+    fn test_mol_invalid_counts_line() {
+        let mol = "name\n\n\nnot a counts line\n";
+
+        let error = parse(BufReader::new(mol.as_bytes())).unwrap_err();
+
+        assert!(matches!(
+            error,
+            FileError::Parse(ParseError {
+                line_number: Some(4),
+                ..
+            })
+        ));
     }
 }

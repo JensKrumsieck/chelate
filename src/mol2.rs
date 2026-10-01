@@ -3,7 +3,8 @@
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::normalize_symbol;
 use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
-use std::io::{self, BufRead, BufReader, Read};
+use crate::error::FileError;
+use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
 /// The line should contain the x, y, and z coordinates followed by the atomic symbol.
@@ -110,7 +111,7 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(atoms[0].occupancy, 1.0);
 /// assert_eq!(atoms[0].name, "Pt1");
 /// ```
-pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let mut atom_count = 0;
 
     let mut atoms = Vec::new();

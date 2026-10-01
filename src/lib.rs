@@ -1,4 +1,5 @@
 use atom::{Atom, Bond, Molecule, ToMolecule};
+use error::FileError;
 use std::{
     ffi::OsStr,
     fs::File,
@@ -9,11 +10,11 @@ use std::{
 
 pub mod atom;
 pub mod cif;
+pub mod error;
 pub mod mol;
 pub mod mol2;
 pub mod pdb;
 pub mod xyz;
-pub mod error;
 
 /// Parses a file based on the FileType and returns a Molecule type.
 /// # Examples
@@ -25,7 +26,7 @@ pub mod error;
 /// assert_eq!(mol.edge_count(), 151);
 /// ```
 #[cfg(feature = "petgraph")]
-pub fn molecule_from_file(filename: impl AsRef<Path>) -> io::Result<Molecule> {
+pub fn molecule_from_file(filename: impl AsRef<Path>) -> Result<Molecule, FileError> {
     Ok(from_file(filename)?.to_molecule())
 }
 
@@ -38,7 +39,7 @@ pub fn molecule_from_file(filename: impl AsRef<Path>) -> io::Result<Molecule> {
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
 /// ```
-pub fn from_file(filename: impl AsRef<Path>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+pub fn from_file(filename: impl AsRef<Path>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let file = File::open(&filename)?;
     let reader = BufReader::new(file);
 
@@ -48,10 +49,7 @@ pub fn from_file(filename: impl AsRef<Path>) -> io::Result<(Vec<Atom>, Vec<Bond>
         Some("mol2") => parse(reader, FileType::MOL2),
         Some("pdb") => parse(reader, FileType::PDB),
         Some("xyz") => parse(reader, FileType::XYZ),
-        _ => Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Unsupported file extension",
-        )),
+        _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "Unsupported file extension").into()),
     }
 }
 
@@ -79,7 +77,10 @@ pub enum FileType {
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
 /// ```
-pub fn parse<P: Read>(reader: BufReader<P>, type_: FileType) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+pub fn parse<P: Read>(
+    reader: BufReader<P>,
+    type_: FileType,
+) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     match type_ {
         FileType::CIF => cif::parse(reader),
         FileType::MOL => mol::parse(reader),

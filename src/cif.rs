@@ -6,11 +6,12 @@
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use super::normalize_symbol;
 use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
+use crate::error::FileError;
 use nalgebra::Matrix4;
 use std::{
     collections::HashMap,
     f32::consts::PI,
-    io::{self, BufRead, BufReader, Read},
+    io::{BufRead, BufReader, Read},
 };
 
 /// Represents the type of CIF file (dialect) being parsed.
@@ -156,7 +157,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// assert_eq!(atoms[0].occupancy, 1.0);
 /// assert_eq!(atoms[0].name, "Ga1A");
 /// ```
-pub fn parse<P: Read>(reader: BufReader<P>) -> io::Result<(Vec<Atom>, Vec<Bond>)> {
+pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let mut dialect = CIFDialect::default();
 
     let mut atoms = Vec::new();
