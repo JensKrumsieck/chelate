@@ -1,0 +1,54 @@
+[package]
+name = "chelate-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+chelate = { path = "../", default-features = false, features = ["petgraph"] }
+
+[[bin]]
+name = "cif"
+path = "fuzz_targets/cif.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mol"
+path = "fuzz_targets/mol.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mol2"
+path = "fuzz_targets/mol2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdb"
+path = "fuzz_targets/pdb.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xyz"
+path = "fuzz_targets/xyz.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bonds"
+path = "fuzz_targets/bonds.rs"
+test = false
+doc = false
+bench = false
