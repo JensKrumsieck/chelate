@@ -25,3 +25,42 @@ jobs:
 
       - name: Run tests
         run: cargo test --verbose --workspace --all-features
+
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cif, mol, mol2, pdb, xyz, bonds]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          # new nightly warnings should not fail the fuzz run
+          rustflags: ""
+          cache-workspaces: fuzz
+          cache-key: ${{ matrix.target }}
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+
+      # keep the generated inputs between runs, so each run continues where the last one stopped
+      - name: Restore corpus
+        uses: actions/cache@v4
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+
+      - name: 🐛 Fuzz ${{ matrix.target }}
+        run: |
+          mkdir -p fuzz/corpus/${{ matrix.target }}
+          cargo +nightly fuzz run ${{ matrix.target }} fuzz/corpus/${{ matrix.target }} fuzz/seed/${{ matrix.target }} -- -dict=fuzz/dict/${{ matrix.target }}.dict -max_total_time=60 -timeout=10
+
+      - name: Upload crash
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
