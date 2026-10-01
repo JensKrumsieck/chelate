@@ -1,4 +1,4 @@
-use atom::{Atom, Bond, Molecule, ToMolecule};
+use atom::{ATOMIC_SYMBOLS, Atom, Bond, Molecule, ToMolecule};
 use error::FileError;
 use std::{
     ffi::OsStr,
@@ -89,6 +89,23 @@ pub fn parse<P: Read>(
         FileType::PDB => Ok((pdb::parse(reader)?, vec![])),
         FileType::XYZ => Ok((xyz::parse(reader)?, vec![])),
     }
+}
+
+/// Returns the atomic number of an element symbol in any case, `None` for unknown elements.
+fn atomic_number(symbol: &str) -> Option<u8> {
+    let symbol = normalize_symbol(symbol);
+    ATOMIC_SYMBOLS
+        .iter()
+        .position(|&s| s == symbol)
+        .map(|index| index as u8 + 1)
+}
+
+/// Returns the trimmed content of the zero-based column range `start..end` of a fixed-width line.
+/// Returns the available part if the line ends within the range and an empty string if it ends before.
+fn column(line: &str, start: usize, end: usize) -> &str {
+    line.get(start..end.min(line.len()))
+        .unwrap_or_default()
+        .trim()
 }
 
 fn normalize_symbol(symbol: &str) -> String {

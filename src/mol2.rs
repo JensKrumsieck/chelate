@@ -1,25 +1,39 @@
 //! Functions for parsing TRIPOS MOL2 files (TRIPOS now is Certara) (chemical/x-mol2)
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
-use super::normalize_symbol;
+use super::atomic_number;
 use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
-use crate::error::FileError;
-use std::io::{BufRead, BufReader, Read};
+use crate::error::{FileError, ParseError};
+use std::{
+    collections::HashMap,
+    io::{BufRead, BufReader, Read},
+};
 
-/// Parses a single line of an TRIPOS MOL2 file and returns an `Atom` object.
-/// The line should contain the x, y, and z coordinates followed by the atomic symbol.
+/// Parses a single line of an TRIPOS MOL2 file and returns the atom id of the file with an `Atom` object,
+/// `None` for atoms that are no elements like dummy atoms (`Du`) or lone pairs (`LP`).
+/// The line should contain the atom id and name, the x, y, and z coordinates followed by the atom type.
 /// Example line: `     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500`
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<(usize, Option<Atom>), ParseError> {
     let mut iter = line.split_whitespace();
 
-    iter.next()?; //discard id
-    let name = iter.next()?;
-    let x = iter.next()?.parse().ok()?;
-    let y = iter.next()?.parse().ok()?;
-    let z = iter.next()?.parse().ok()?;
+    let id = iter
+        .next()
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| ParseError::new("Invalid atom id"))?;
+    let name = iter
+        .next()
+        .ok_or_else(|| ParseError::new("Missing atom name"))?;
+    let mut coord = || {
+        iter.next()
+            .and_then(|s| s.parse::<f32>().ok())
+            .ok_or_else(|| ParseError::new("Invalid coordinates"))
+    };
+    let (x, y, z) = (coord()?, coord()?, coord()?);
 
-    let type_ = iter.next()?;
-    let mut symbol = type_.split('.').next()?;
+    let type_ = iter
+        .next()
+        .ok_or_else(|| ParseError::new("Missing atom type"))?;
+    let mut symbol = type_.split('.').next().unwrap_or_default();
 
     let chain_id = if let Some(next) = iter.next() {
         next.parse().unwrap_or_default()
@@ -45,19 +59,18 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
         symbol = get_symbol_from_name(name)
     }
 
-    let atomic_number = ATOMIC_SYMBOLS
-        .iter()
-        .position(|&s| s == normalize_symbol(symbol))?
-        + 1;
+    let Some(atomic_number) = atomic_number(symbol) else {
+        return Ok((id, None));
+    };
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
     atom.chain = chain_id;
     atom.resname = residue.to_string();
     atom.resid = res_id;
     atom.name = name.to_string();
 
-    Some(atom)
+    Ok((id, Some(atom)))
 }
 
 fn get_symbol_from_name(s: &str) -> &str {
@@ -70,17 +83,23 @@ fn get_symbol_from_name(s: &str) -> &str {
 /// Parses a single line of an MO2L file and returns a `Bond` object.
 /// The line should contain the bond id, the atoms ids by the bond order where "ar" is aromatic bond.
 /// Example line: `     1     1     2   un`
-fn parse_bond_line(line: &str) -> Option<Bond> {
+fn parse_bond_line(line: &str) -> Result<Bond, ParseError> {
     let mut iter = line.split_whitespace();
 
-    iter.next()?; // Skip the bond id
-    let atom1 = iter.next()?.parse().ok()?;
-    let atom2 = iter.next()?.parse().ok()?;
-    let raw_order = iter.next()?;
+    iter.next(); // Skip the bond id
+    let mut atom = || {
+        iter.next()
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(|| ParseError::new("Invalid bond"))
+    };
+    let (atom1, atom2) = (atom()?, atom()?);
+    let raw_order = iter
+        .next()
+        .ok_or_else(|| ParseError::new("Missing bond type"))?;
     let order = raw_order.parse().unwrap_or(1);
     let is_aromatic = raw_order.starts_with("ar");
 
-    Some(Bond {
+    Ok(Bond {
         atom1,
         atom2,
         order,
@@ -120,39 +139,49 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
     let mut pick_atoms = false;
     let mut pick_bonds = false;
 
-    for line in reader.lines().skip_while(|s| {
-        !s.as_ref()
-            .unwrap_or(&String::from(""))
-            .contains("@<TRIPOS>ATOM")
-    }) {
+    // ids of the parsed atoms by the atom ids of the current molecule, `None` for skipped atoms
+    let mut ids: HashMap<usize, Option<usize>> = HashMap::new();
+
+    for (i, line) in reader
+        .lines()
+        .enumerate()
+        .skip_while(|(_, line)| line.as_ref().is_ok_and(|l| !l.contains("@<TRIPOS>ATOM")))
+    {
         let line = line?;
         let line_trimmed = line.trim();
-        match line_trimmed {
-            "@<TRIPOS>ATOM" => {
-                pick_atoms = true;
-                pick_bonds = false;
-                continue;
+        if line_trimmed.is_empty() || line_trimmed.starts_with('#') {
+            continue;
+        }
+        if line_trimmed.starts_with("@<TRIPOS>") {
+            pick_atoms = line_trimmed == "@<TRIPOS>ATOM";
+            pick_bonds = line_trimmed == "@<TRIPOS>BOND";
+            // atom ids start over with each molecule
+            if line_trimmed == "@<TRIPOS>MOLECULE" {
+                ids.clear();
             }
-            "@<TRIPOS>BOND" => {
-                pick_atoms = false;
-                pick_bonds = true;
-                continue;
-            }
-            _ => {
-                if line.starts_with("@<TRIPOS>") {
-                    pick_atoms = false;
-                    pick_bonds = false;
-                    continue;
-                }
-            }
+            continue;
         }
 
         if pick_atoms {
-            if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
-                atoms.push(atom);
+            let (id, atom) =
+                parse_atom_line(line_trimmed, &mut atom_count).map_err(|e| e.with_line(i + 1))?;
+            ids.insert(id, atom.as_ref().map(|a| a.id));
+            atoms.extend(atom);
+        } else if pick_bonds {
+            let bond = parse_bond_line(line_trimmed).map_err(|e| e.with_line(i + 1))?;
+            let id = |atom| {
+                ids.get(&atom)
+                    .copied()
+                    .ok_or_else(|| ParseError::new("Bond refers to missing atom").with_line(i + 1))
+            };
+            // bonds to skipped atoms are skipped as well
+            if let (Some(atom1), Some(atom2)) = (id(bond.atom1)?, id(bond.atom2)?) {
+                bonds.push(Bond {
+                    atom1,
+                    atom2,
+                    ..bond
+                });
             }
-        } else if pick_bonds && let Some(bond) = parse_bond_line(&line) {
-            bonds.push(bond);
         }
     }
     Ok((atoms, bonds))

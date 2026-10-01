@@ -1,31 +1,32 @@
 //! Functions for parsing MDL MOL files (chemical/x-mdl-molfile)
 //! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
-use super::normalize_symbol;
-use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
+use super::{atomic_number, column};
+use crate::atom::{Atom, Bond};
 use crate::error::{FileError, ParseError};
 use std::io::{BufRead, BufReader, Read};
 
-/// Parses a single line of an MOL file and returns an `Atom` object.
-/// The line should contain the x, y, and z coordinates followed by the atomic symbol.
+/// Parses a single line of an MOL file and returns an `Atom` object,
+/// `None` for symbols that are no elements like `R#` or `*`.
+/// The line should contain the x, y, and z coordinates (10 characters each) followed by the atomic symbol (columns 32 - 34).
 /// Example line: `    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0`
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
-    let mut iter = line.split_whitespace();
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, ParseError> {
+    let coord = |start| {
+        column(line, start, start + 10)
+            .parse::<f32>()
+            .map_err(|_| ParseError::new("Invalid coordinates"))
+    };
+    let (x, y, z) = (coord(0)?, coord(10)?, coord(20)?);
 
-    let x = iter.next()?.parse().ok()?;
-    let y = iter.next()?.parse().ok()?;
-    let z = iter.next()?.parse().ok()?;
-
-    let symbol = iter.next()?;
-    let atomic_number = ATOMIC_SYMBOLS
-        .iter()
-        .position(|&s| s == normalize_symbol(symbol))?
-        + 1;
+    let symbol = column(line, 31, 34);
+    let Some(atomic_number) = atomic_number(symbol) else {
+        return Ok(None);
+    };
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
     atom.name = symbol.to_string();
 
-    Some(atom)
+    Ok(Some(atom))
 }
 
 /// Parses the counts line of a MOL file and returns the number of atoms and bonds.
@@ -41,16 +42,17 @@ fn parse_counts_line(line: &str) -> Option<(usize, usize)> {
 /// The line should contain the atoms ids and the bond order where 4 is aromatic bond.
 /// The fields are 3 characters wide and run together for atom ids above 99.
 /// Example lines: `  1  2  2  0  0  0  0`, `100101  1  0  0  0  0`
-fn parse_bond_line(line: &str) -> Option<Bond> {
-    let atom1 = line.get(0..3)?.trim().parse().ok()?;
-    let atom2 = line.get(3..6)?.trim().parse().ok()?;
-    let mut order = line.get(6..9)?.trim().parse().ok()?;
+fn parse_bond_line(line: &str) -> Result<Bond, ParseError> {
+    let invalid = |_| ParseError::new("Invalid bond");
+    let atom1 = column(line, 0, 3).parse().map_err(invalid)?;
+    let atom2 = column(line, 3, 6).parse().map_err(invalid)?;
+    let mut order = column(line, 6, 9).parse().map_err(invalid)?;
     let is_aromatic = order == 4;
     if is_aromatic {
         order = 1;
     }
 
-    Some(Bond {
+    Ok(Bond {
         atom1,
         atom2,
         order,
@@ -81,25 +83,47 @@ fn parse_bond_line(line: &str) -> Option<Bond> {
 /// assert_eq!(atoms[0].name, "N");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
-    let mut atom_count = 0;
+    let mut lines = reader.lines().zip(1..).skip(3);
+    // the file must not end before all atom and bond lines are read
+    let mut next_line = || -> Result<(String, usize), FileError> {
+        match lines.next() {
+            Some((line, line_number)) => Ok((line?, line_number)),
+            None => Err(ParseError::new("Unexpected end of file").into()),
+        }
+    };
 
     // the counts line follows the 3 header lines and tells how many atom and bond lines follow
-    let mut lines = reader.lines().skip(3);
-    let counts_line = lines.next().transpose()?.unwrap_or_default();
+    let (counts_line, line_number) = next_line()?;
     let (atom_len, bond_len) = parse_counts_line(&counts_line)
-        .ok_or_else(|| ParseError::new("Invalid counts line").with_line(4))?;
+        .ok_or_else(|| ParseError::new("Invalid counts line").with_line(line_number))?;
 
+    let mut atom_count = 0;
     let mut atoms = Vec::with_capacity(atom_len);
-    for line in lines.by_ref().take(atom_len) {
-        if let Some(atom) = parse_atom_line(&line?, &mut atom_count) {
-            atoms.push(atom);
-        }
+    // ids of the parsed atoms by their position in the file, `None` for skipped atoms
+    let mut ids = Vec::with_capacity(atom_len);
+    for _ in 0..atom_len {
+        let (line, line_number) = next_line()?;
+        let atom = parse_atom_line(&line, &mut atom_count).map_err(|e| e.with_line(line_number))?;
+        ids.push(atom.as_ref().map(|a| a.id));
+        atoms.extend(atom);
     }
 
     let mut bonds = Vec::with_capacity(bond_len);
-    for line in lines.take(bond_len) {
-        if let Some(bond) = parse_bond_line(&line?) {
-            bonds.push(bond);
+    for _ in 0..bond_len {
+        let (line, line_number) = next_line()?;
+        let bond = parse_bond_line(&line).map_err(|e| e.with_line(line_number))?;
+        let id = |atom: usize| {
+            atom.checked_sub(1)
+                .and_then(|index| ids.get(index).copied())
+                .ok_or_else(|| ParseError::new("Bond refers to missing atom").with_line(line_number))
+        };
+        // bonds to skipped atoms are skipped as well
+        if let (Some(atom1), Some(atom2)) = (id(bond.atom1)?, id(bond.atom2)?) {
+            bonds.push(Bond {
+                atom1,
+                atom2,
+                ..bond
+            });
         }
     }
     Ok((atoms, bonds))

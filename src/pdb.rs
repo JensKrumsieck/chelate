@@ -1,8 +1,8 @@
 //! Functions for parsing PDB files (chemical/x-pdb)
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
-use super::normalize_symbol;
-use crate::atom::{ATOMIC_SYMBOLS, Atom};
-use crate::error::FileError;
+use super::{atomic_number, column};
+use crate::atom::Atom;
+use crate::error::{FileError, ParseError};
 use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of a PDB file and returns an `Atom` object.
@@ -26,20 +26,26 @@ use std::io::{BufRead, BufReader, Read};
 /// | 61 - 66  | Real(6.2)   | tempFactor   | Temperature factor.                         |
 /// | 77 - 78  | LString(2)  | element      | Element symbol, right-justified.            |
 /// | 79 - 80  | LString(2)  | charge       | Charge on the atom.                         |
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, ParseError> {
+    let coord = |start, end| {
+        column(line, start, end)
+            .parse::<f32>()
+            .map_err(|_| ParseError::new("Invalid coordinates"))
+    };
+    let (x, y, z) = (coord(30, 38)?, coord(38, 46)?, coord(46, 54)?);
+
     // older files often end after the coordinates or the temperature factor
     let symbol = match column(line, 76, 78) {
-        "" => element_from_atom_name(line.get(12..16)?)?,
+        "" => line
+            .get(12..16)
+            .and_then(element_from_atom_name)
+            .unwrap_or_default(),
         symbol => symbol,
     };
-    let atomic_number = ATOMIC_SYMBOLS
-        .iter()
-        .position(|&s| s == normalize_symbol(symbol))?
-        + 1;
+    let Some(atomic_number) = atomic_number(symbol) else {
+        return Ok(None);
+    };
 
-    let x = column(line, 30, 38).parse().ok()?;
-    let y = column(line, 38, 46).parse().ok()?;
-    let z = column(line, 46, 54).parse().ok()?;
     let chain = column(line, 21, 22).parse().unwrap_or_default();
     let resname = column(line, 17, 20).to_string();
     let resid = column(line, 22, 26).parse().unwrap_or_default();
@@ -47,22 +53,14 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
 
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
     atom.chain = chain;
     atom.resname = resname;
     atom.resid = resid;
     atom.occupancy = occ;
     atom.name = symbol.to_string();
 
-    Some(atom)
-}
-
-/// Returns the trimmed content of the zero-based column range `start..end`.
-/// Returns the available part if the line ends within the range and an empty string if it ends before.
-fn column(line: &str, start: usize, end: usize) -> &str {
-    line.get(start..end.min(line.len()))
-        .unwrap_or_default()
-        .trim()
+    Ok(Some(atom))
 }
 
 /// Guesses the element symbol from the atom name (columns 13 - 16) for lines without element columns.
@@ -106,15 +104,14 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<Vec<Atom>, FileError> {
     let mut atom_count = 0;
 
     let mut atoms = Vec::new();
-    for line in reader.lines() {
+    for (i, line) in reader.lines().enumerate() {
         let line = line?;
         // Skip lines that are not ATOM or HETATM records
         if !line.starts_with("ATOM") && !line.starts_with("HETATM") {
             continue;
         }
-        if let Some(atom) = parse_atom_line(&line, &mut atom_count) {
-            atoms.push(atom);
-        }
+        let atom = parse_atom_line(&line, &mut atom_count).map_err(|e| e.with_line(i + 1))?;
+        atoms.extend(atom);
     }
     Ok(atoms)
 }
