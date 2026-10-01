@@ -54,6 +54,7 @@ pub fn from_file(filename: impl AsRef<Path>) -> Result<(Vec<Atom>, Vec<Bond>), F
 }
 
 /// Enum to declare one of the supported chemical filetypes
+#[non_exhaustive]
 pub enum FileType {
     CIF,
     MOL,
