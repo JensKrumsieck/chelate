@@ -28,7 +28,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Option<Atom> {
     };
 
     let residue_raw = iter.next().unwrap_or_default();
-    let id_pos = residue_raw.chars().position(|c| c.is_numeric());
+    let id_pos = residue_raw.find(|c: char| c.is_numeric());
     let residue = if let Some(pos) = id_pos {
         &residue_raw[..pos]
     } else {

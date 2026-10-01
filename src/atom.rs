@@ -22,6 +22,9 @@ impl ToMolecule<Self> for (Vec<Atom>, Vec<Bond>) {
         if bonds.is_empty() {
             bonds = Bond::from_atoms(&atoms);
         }
+        //skip bonds to atoms that do not exist, as the graph would add empty atoms for them
+        let ids = 1..=atoms.len();
+        bonds.retain(|b| ids.contains(&b.atom1) && ids.contains(&b.atom2));
 
         let mut mol = Molecule::with_capacity(atoms.len(), bonds.len());
         for atom in atoms {

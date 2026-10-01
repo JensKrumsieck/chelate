@@ -92,8 +92,9 @@ pub fn parse<P: Read>(
 }
 
 fn normalize_symbol(symbol: &str) -> String {
-    if let Some(first_char) = symbol.chars().next() {
-        first_char.to_uppercase().collect::<String>() + &symbol[1..].to_lowercase()
+    let mut chars = symbol.chars();
+    if let Some(first_char) = chars.next() {
+        first_char.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
     } else {
         String::new()
     }
