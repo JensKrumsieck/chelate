@@ -432,7 +432,7 @@ _cell_angle_gamma 90
 ";
         let (atoms, _) = parse(BufReader::new(cif.as_bytes())).unwrap();
 
-        let atomic_numbers: Vec<_> = atoms.iter().map(|a| a.atomic_number).collect();
+        let atomic_numbers: Vec<_> = atoms.iter().map(|a| a.symbol.atomic_number()).collect();
         assert_eq!(atomic_numbers, [29, 17, 6, 1]);
         assert!(relative_eq!(
             atoms[0].coord,
@@ -487,7 +487,7 @@ _cell_angle_gamma 90
             let symbol = normalize_symbol(element_from_label(&atom.data.name));
             let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol).unwrap() + 1;
             assert_eq!(
-                atomic_number as u8, atom.atomic_number,
+                atomic_number as u8, atom.symbol.atomic_number(),
                 "{}",
                 atom.data.name
             );

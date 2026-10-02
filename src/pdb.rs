@@ -1,8 +1,8 @@
 //! Functions for parsing PDB files (chemical/x-pdb)
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
 use super::{atomic_number, column};
-use crate::types::Atom;
 use crate::error::{FileError, ParseError};
+use crate::types::Atom;
 use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of a PDB file and returns an `Atom` object.
@@ -145,9 +145,9 @@ HETATM    3 ZN    ZN A 101      10.000   5.000  -5.000
         let atoms = parse(BufReader::new(pdb.as_bytes())).unwrap();
 
         assert_eq!(atoms.len(), 3);
-        assert_eq!(atoms[0].atomic_number, 7);
-        assert_eq!(atoms[1].atomic_number, 6);
-        assert_eq!(atoms[2].atomic_number, 30);
+        assert_eq!(atoms[0].symbol.atomic_number(), 7);
+        assert_eq!(atoms[1].symbol.atomic_number(), 6);
+        assert_eq!(atoms[2].symbol.atomic_number(), 30);
         assert_eq!(atoms[2].data.resname, "ZN");
         assert_eq!(atoms[2].data.occupancy, 1.0);
     }
