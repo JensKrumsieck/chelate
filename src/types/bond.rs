@@ -1,6 +1,6 @@
 use crate::types::Atom;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy, PartialOrd)]
 pub struct Bond {
     pub atom1: usize,
     pub atom2: usize,

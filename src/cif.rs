@@ -5,11 +5,9 @@
 //!
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use crate::error::FileError;
-use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, BondOrder, Element};
-use nalgebra::{Matrix4, Vector3};
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, BondOrder, Cell, Element};
 use std::{
     collections::HashMap,
-    f32::consts::PI,
     io::{BufRead, BufReader, Read},
 };
 
@@ -171,7 +169,9 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
 
     //index of the first atom of the current data block
     let mut block_start = 0;
-    let mut cell_params: [Option<f32>; 6] = Default::default();
+    let mut cell_params: [Option<f64>; 6] = Default::default();
+    //cell of the last data block, returned later
+    let mut cell: Option<Cell>;
 
     let mut map: HashMap<String, usize> = HashMap::new();
 
@@ -184,9 +184,8 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
         }
 
         if line_trimmed.starts_with("data_") {
-            if headers.fractional {
-                fractional_to_cartesian(&mut atoms[block_start..], &cell_params)?;
-            }
+            cell = cell_from_params(&cell_params);
+            finish_block(&mut atoms[block_start..], &headers, cell)?;
             //each data block is a separate structure with its own cell, columns and labels
             dialect = CIFDialect::default();
             pick_atoms = false;
@@ -235,10 +234,8 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
             bonds.push(bond);
         }
     }
-
-    if headers.fractional {
-        fractional_to_cartesian(&mut atoms[block_start..], &cell_params)?;
-    }
+    cell = cell_from_params(&cell_params);
+    finish_block(&mut atoms[block_start..], &headers, cell)?;
     Ok((atoms, bonds))
 }
 
@@ -280,7 +277,7 @@ fn set_header_indices(header: &str, index: usize, headers: &mut CIFAtomHeader) {
 
 /// Stores the value of a cell parameter line like `_cell_length_a 8.1707(5)`.
 /// The order is a, b, c, alpha, beta, gamma, independent of the order in the file.
-fn parse_cell_param(line: &str, cell_params: &mut [Option<f32>; 6]) {
+fn parse_cell_param(line: &str, cell_params: &mut [Option<f64>; 6]) {
     let mut iter = line.split_whitespace();
     let index = match iter.next() {
         Some("_cell_length_a") => 0,
@@ -294,19 +291,12 @@ fn parse_cell_param(line: &str, cell_params: &mut [Option<f32>; 6]) {
     cell_params[index] = iter.next().and_then(get_value_from_uncertainity);
 }
 
-fn get_value_from_uncertainity(input: &str) -> Option<f32> {
+fn get_value_from_uncertainity(input: &str) -> Option<f64> {
     input.split('(').next()?.parse().ok()
 }
 
-/// Converts fractional coordinates to cartesian coordinates.
-/// Runs once a data block is read completely, as the cell parameters may follow the atoms.
-fn fractional_to_cartesian(
-    atoms: &mut [Atom],
-    cell_params: &[Option<f32>; 6],
-) -> Result<(), FileError> {
-    if atoms.is_empty() {
-        return Ok(());
-    }
+/// Builds the cell of a data block, `None` if a parameter is missing
+fn cell_from_params(cell_params: &[Option<f64>; 6]) -> Option<Cell> {
     let [
         Some(a),
         Some(b),
@@ -316,44 +306,35 @@ fn fractional_to_cartesian(
         Some(gamma),
     ] = *cell_params
     else {
-        return Err(FileError::parse(
-            "Missing cell parameters for fractional coordinates",
-        ));
+        return None;
     };
-    let matrix = conversion_matrix(a, b, c, alpha, beta, gamma);
-    for atom in atoms {
-        atom.position = matrix.transform_vector(&Vector3::from(atom.position)).into();
-    }
-    Ok(())
+    Some(Cell {
+        a,
+        b,
+        c,
+        alpha,
+        beta,
+        gamma,
+    })
 }
 
-fn conversion_matrix(a: f32, b: f32, c: f32, alpha: f32, beta: f32, gamma: f32) -> Matrix4<f32> {
-    let cos_alpha = (alpha * PI / 180.0).cos();
-    let cos_beta = (beta * PI / 180.0).cos();
-    let cos_gamma = (gamma * PI / 180.0).cos();
-    let sin_gamma = (gamma * PI / 180.0).sin();
-
-    Matrix4::new(
-        a,
-        b * cos_gamma,
-        c * cos_beta,
-        0.0,
-        0.0,
-        b * sin_gamma,
-        c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma,
-        0.0,
-        0.0,
-        0.0,
-        c * ((1.0 - cos_alpha.powi(2) - cos_beta.powi(2) - cos_gamma.powi(2)
-            + 2.0 * cos_alpha * cos_beta * cos_gamma)
-            .sqrt())
-            / sin_gamma,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-    )
+/// Runs once a data block is read completely, as the cell parameters may follow the atoms.
+/// Converts fractional coordinates to cartesian coordinates.
+fn finish_block(
+    atoms: &mut [Atom],
+    headers: &CIFAtomHeader,
+    cell: Option<Cell>,
+) -> Result<(), FileError> {
+    if headers.fractional && !atoms.is_empty() {
+        let cell = cell.ok_or_else(|| {
+            FileError::parse("Missing cell parameters for fractional coordinates")
+        })?;
+        for atom in atoms {
+            let [x, y, z] = atom.position.map(f64::from);
+            atom.position = cell.fractional_to_cartesian([x, y, z]).map(|v| v as f32);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
