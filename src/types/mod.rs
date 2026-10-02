@@ -6,7 +6,7 @@ use smol_str::SmolStr;
 use thiserror::Error;
 
 pub use atom::Atom;
-pub use bond::Bond;
+pub use bond::{Bond, BondOrder};
 pub use element::{ATOMIC_SYMBOLS, Element};
 
 #[derive(Error, Debug)]

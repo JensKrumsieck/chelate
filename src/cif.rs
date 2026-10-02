@@ -5,7 +5,7 @@
 //!
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use crate::error::FileError;
-use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, Element};
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, BondOrder, Element};
 use nalgebra::Matrix4;
 use std::{
     collections::HashMap,
@@ -130,8 +130,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
     Some(Bond {
         atom1: *map.get(atom1)?,
         atom2: *map.get(atom2)?,
-        order: 1,
-        is_aromatic: false,
+        order: BondOrder::Single,
     })
 }
 

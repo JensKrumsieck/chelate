@@ -2,7 +2,7 @@
 //! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
 use super::column;
 use crate::error::FileError;
-use crate::types::{Atom, Bond, Element};
+use crate::types::{Atom, Bond, BondOrder, Element};
 use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of an MOL file and returns an `Atom` object,
@@ -44,17 +44,12 @@ fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
     let invalid = |_| FileError::parse("Invalid bond");
     let atom1 = column(line, 0, 3).parse().map_err(invalid)?;
     let atom2 = column(line, 3, 6).parse().map_err(invalid)?;
-    let mut order = column(line, 6, 9).parse().map_err(invalid)?;
-    let is_aromatic = order == 4;
-    if is_aromatic {
-        order = 1;
-    }
-
+    let order = column(line, 6, 9).parse().map_err(invalid)?;
+    let order = BondOrder::from_sdf(order).ok_or(FileError::parse("Invalid BondOrder"))?;
     Ok(Bond {
         atom1,
         atom2,
         order,
-        is_aromatic,
     })
 }
 
@@ -173,7 +168,10 @@ mod tests {
         assert_eq!(atoms.len(), 101);
         assert_eq!(bonds.len(), 100);
         let last = bonds.last().unwrap();
-        assert_eq!((last.atom1, last.atom2, last.order), (100, 101, 1));
+        assert_eq!(
+            (last.atom1, last.atom2, last.order),
+            (100, 101, BondOrder::Single)
+        );
     }
 
     #[test]

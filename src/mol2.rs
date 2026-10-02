@@ -2,7 +2,7 @@
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use crate::error::FileError;
-use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, Element};
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, BondOrder, Element};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read},
@@ -93,14 +93,13 @@ fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
     let raw_order = iter
         .next()
         .ok_or_else(|| FileError::parse("Missing bond type"))?;
-    let order = raw_order.parse().unwrap_or(1);
-    let is_aromatic = raw_order.starts_with("ar");
+
+    let order = BondOrder::from_sybyl(raw_order).ok_or(FileError::parse("Invalid BondOrder"))?;
 
     Ok(Bond {
         atom1,
         atom2,
         order,
-        is_aromatic,
     })
 }
 
