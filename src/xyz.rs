@@ -42,13 +42,13 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, F
 /// let atoms = xyz::parse(reader).unwrap();
 ///
 /// assert_eq!(atoms.len(), 23);
-/// assert_eq!(atoms[0].atomic_number, 6);
+/// assert_eq!(atoms[0].symbol.atomic_number(), 6);
 /// assert_eq!(atoms[0].coord, Point3::new(0.85246046633891, -1.08114766176821, 0.02536743820348));
-/// assert_eq!(atoms[0].resname, "UNK");
-/// assert_eq!(atoms[0].resid, 0);
-/// assert_eq!(atoms[0].chain, char::default());
-/// assert_eq!(atoms[0].occupancy, 1.0);
-/// assert_eq!(atoms[0].name, "C");
+/// assert_eq!(atoms[0].data.resname, "UNK");
+/// assert_eq!(atoms[0].data.resid, 0);
+/// assert_eq!(atoms[0].data.chain, "");
+/// assert_eq!(atoms[0].data.occupancy, 1.0);
+/// assert_eq!(atoms[0].data.name, "C");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> Result<Vec<Atom>, FileError> {
     let mut lines = reader.lines();

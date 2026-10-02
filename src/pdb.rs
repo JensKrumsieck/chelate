@@ -91,12 +91,12 @@ fn element_from_atom_name(name: &str) -> Option<&str> {
 /// let atoms = pdb::parse(reader).unwrap();
 ///
 /// assert_eq!(atoms.len(), 15450);
-/// assert_eq!(atoms[0].atomic_number, 7);
+/// assert_eq!(atoms[0].symbol.atomic_number(), 7);
 /// assert_eq!(atoms[0].coord, Point3::new(58.667, 69.671, 7.056));
-/// assert_eq!(atoms[0].resname, "ASP");
-/// assert_eq!(atoms[0].resid, 25);
-/// assert_eq!(atoms[0].occupancy, 1.0);
-/// assert_eq!(atoms[0].name, "N");
+/// assert_eq!(atoms[0].data.resname, "ASP");
+/// assert_eq!(atoms[0].data.resid, 25);
+/// assert_eq!(atoms[0].data.occupancy, 1.0);
+/// assert_eq!(atoms[0].data.name, "N");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> Result<Vec<Atom>, FileError> {
     let mut atom_count = 0;

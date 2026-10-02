@@ -72,13 +72,13 @@ fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
 ///
 /// assert_eq!(atoms.len(), 37);
 /// assert_eq!(bonds.len(), 41);
-/// assert_eq!(atoms[0].atomic_number, 7);
+/// assert_eq!(atoms[0].symbol.atomic_number(), 7);
 /// assert_eq!(atoms[0].coord, Point3::new(1.3194, -1.2220, -0.8506));
-/// assert_eq!(atoms[0].resname, "UNK");
-/// assert_eq!(atoms[0].resid, 0);
-/// assert_eq!(atoms[0].chain, char::default());
-/// assert_eq!(atoms[0].occupancy, 1.0);
-/// assert_eq!(atoms[0].name, "N");
+/// assert_eq!(atoms[0].data.resname, "UNK");
+/// assert_eq!(atoms[0].data.resid, 0);
+/// assert_eq!(atoms[0].data.chain, "");
+/// assert_eq!(atoms[0].data.occupancy, 1.0);
+/// assert_eq!(atoms[0].data.name, "N");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let mut lines = reader.lines().zip(1..).skip(3);
