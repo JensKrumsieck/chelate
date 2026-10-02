@@ -83,7 +83,6 @@ fn element_from_atom_name(name: &str) -> Option<&str> {
 /// ```
 /// use chelate::pdb;
 /// use std::fs::File;
-/// use nalgebra::Point3;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/0001.pdb").unwrap();
@@ -92,7 +91,7 @@ fn element_from_atom_name(name: &str) -> Option<&str> {
 ///
 /// assert_eq!(atoms.len(), 15450);
 /// assert_eq!(atoms[0].symbol.atomic_number(), 7);
-/// assert_eq!(atoms[0].coord, Point3::new(58.667, 69.671, 7.056));
+/// assert_eq!(atoms[0].position, [58.667, 69.671, 7.056]);
 /// assert_eq!(atoms[0].data.resname, "ASP");
 /// assert_eq!(atoms[0].data.resid, 25);
 /// assert_eq!(atoms[0].data.occupancy, 1.0);

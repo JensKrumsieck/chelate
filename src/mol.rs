@@ -58,7 +58,6 @@ fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
 /// ```
 /// use chelate::mol;
 /// use std::fs::File;
-/// use nalgebra::Point3;
 /// use std::io::BufReader;
 ///
 /// let file = File::open("data/corrole.mol").unwrap();
@@ -68,7 +67,7 @@ fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
 /// assert_eq!(atoms.len(), 37);
 /// assert_eq!(bonds.len(), 41);
 /// assert_eq!(atoms[0].symbol.atomic_number(), 7);
-/// assert_eq!(atoms[0].coord, Point3::new(1.3194, -1.2220, -0.8506));
+/// assert_eq!(atoms[0].position, [1.3194, -1.2220, -0.8506]);
 /// assert_eq!(atoms[0].data.resname, "UNK");
 /// assert_eq!(atoms[0].data.resid, 0);
 /// assert_eq!(atoms[0].data.chain, "");

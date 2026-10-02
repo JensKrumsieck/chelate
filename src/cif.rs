@@ -6,7 +6,7 @@
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use crate::error::FileError;
 use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, BondOrder, Element};
-use nalgebra::Matrix4;
+use nalgebra::{Matrix4, Vector3};
 use std::{
     collections::HashMap,
     f32::consts::PI,
@@ -139,7 +139,6 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// ```
 /// use chelate::cif;
 /// use std::fs::File;
-/// use nalgebra::Point3;
 /// use approx::relative_eq;
 /// use std::io::BufReader;
 ///
@@ -150,7 +149,7 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
 /// assert_eq!(atoms[0].symbol.atomic_number(), 31);
-/// assert!(relative_eq!(atoms[0].coord, Point3::new(11.377683611607571, 1.637743396392762, 3.827447754962335), epsilon = 1.0e-5));
+/// assert!(relative_eq!(atoms[0].position[..], [11.377683611607571, 1.637743396392762, 3.827447754962335][..], epsilon = 1.0e-5));
 /// assert_eq!(atoms[0].data.resname, "UNK");
 /// assert_eq!(atoms[0].data.resid, 0);
 /// assert_eq!(atoms[0].data.chain, "");
@@ -323,7 +322,7 @@ fn fractional_to_cartesian(
     };
     let matrix = conversion_matrix(a, b, c, alpha, beta, gamma);
     for atom in atoms {
-        atom.coord = matrix.transform_vector(&atom.coord.coords).into();
+        atom.position = matrix.transform_vector(&Vector3::from(atom.position)).into();
     }
     Ok(())
 }
@@ -362,7 +361,6 @@ mod tests {
     use super::*;
     use crate::error::ErrorKind;
     use approx::relative_eq;
-    use nalgebra::Point3;
     use rstest::rstest;
     use std::fs::File;
 
@@ -411,7 +409,7 @@ mod tests {
         //second block uses its own cell parameters
         for (atom, expected) in atoms[atoms1.len()..].iter().zip(&atoms2) {
             assert_eq!(atom.data.name, expected.data.name);
-            assert_eq!(atom.coord, expected.coord);
+            assert_eq!(atom.position, expected.position);
         }
         //bonds of the second block refer to atoms of the second block
         for (bond, expected) in bonds[bonds1.len()..].iter().zip(&bonds2) {
@@ -446,8 +444,8 @@ _cell_angle_gamma 90
         let atomic_numbers: Vec<_> = atoms.iter().map(|a| a.symbol.atomic_number()).collect();
         assert_eq!(atomic_numbers, [29, 17, 6, 1]);
         assert!(relative_eq!(
-            atoms[0].coord,
-            Point3::new(1.0, 4.0, 9.0),
+            atoms[0].position[..],
+            [1.0, 4.0, 9.0][..],
             epsilon = 1.0e-5
         ));
     }

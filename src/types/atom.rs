@@ -1,4 +1,3 @@
-use nalgebra::{Point3, point};
 use smol_str::SmolStr;
 
 use crate::types::{Element, element::COVALENT_RADII_PM};
@@ -8,7 +7,7 @@ pub struct Atom {
     pub id: usize,
     pub symbol: Element,
     pub data: AtomData,
-    pub coord: Point3<f32>,
+    pub position: [f32; 3],
 }
 
 impl Atom {
@@ -16,14 +15,17 @@ impl Atom {
         Atom {
             id,
             symbol,
-            coord: point![x, y, z],
+            position: [x, y, z],
             data: Default::default(),
         }
     }
 
     /// Checks whether atom is bond to `rhs` by their covalent radii while allowing a delta
     pub fn bond_to_by_covalent_radii(&self, rhs: &Atom, delta: f32) -> bool {
-        let dist = nalgebra::distance_squared(&self.coord, &rhs.coord);
+        let dx = self.position[0] - rhs.position[0];
+        let dy = self.position[1] - rhs.position[1];
+        let dz = self.position[2] - rhs.position[2];
+        let dist = dx * dx + dy * dy + dz * dz;
 
         //fast check -> take highest covalent radius ~((260+260+100)/100)²
         const FAST_FAIL: f32 = 38.0;
