@@ -2,7 +2,7 @@
 //! XYZ format is the simplest file format just containing an atom symbol and XYZ cartesian coordinates
 //! Documentation can be found here <https://en.wikipedia.org/wiki/XYZ_file_format>
 use super::atomic_number;
-use crate::atom::Atom;
+use crate::types::Atom;
 use crate::error::{FileError, ParseError};
 use std::io::{BufRead, BufReader, Read};
 
@@ -27,7 +27,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
     *atom_count += 1;
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
-    atom.name = symbol.into();
+    atom.data.name = symbol.into();
 
     Ok(Some(atom))
 }

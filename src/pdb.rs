@@ -1,7 +1,7 @@
 //! Functions for parsing PDB files (chemical/x-pdb)
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
 use super::{atomic_number, column};
-use crate::atom::Atom;
+use crate::types::Atom;
 use crate::error::{FileError, ParseError};
 use std::io::{BufRead, BufReader, Read};
 
@@ -54,11 +54,11 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
     *atom_count += 1;
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
-    atom.chain = chain;
-    atom.resname = resname.into();
-    atom.resid = resid;
-    atom.occupancy = occ;
-    atom.name = symbol.into();
+    atom.data.chain = chain;
+    atom.data.resname = resname.into();
+    atom.data.resid = resid;
+    atom.data.occupancy = occ;
+    atom.data.name = symbol.into();
 
     Ok(Some(atom))
 }
@@ -148,8 +148,8 @@ HETATM    3 ZN    ZN A 101      10.000   5.000  -5.000
         assert_eq!(atoms[0].atomic_number, 7);
         assert_eq!(atoms[1].atomic_number, 6);
         assert_eq!(atoms[2].atomic_number, 30);
-        assert_eq!(atoms[2].resname, "ZN");
-        assert_eq!(atoms[2].occupancy, 1.0);
+        assert_eq!(atoms[2].data.resname, "ZN");
+        assert_eq!(atoms[2].data.occupancy, 1.0);
     }
 
     #[rstest]

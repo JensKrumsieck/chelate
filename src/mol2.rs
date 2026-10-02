@@ -2,7 +2,7 @@
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
 use super::atomic_number;
-use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond};
 use crate::error::{FileError, ParseError};
 use std::{
     collections::HashMap,
@@ -68,10 +68,10 @@ fn parse_atom_line(
     *atom_count += 1;
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
-    atom.chain = chain_id;
-    atom.resname = residue.into();
-    atom.resid = res_id;
-    atom.name = name.into();
+    atom.data.chain = chain_id;
+    atom.data.resname = residue.into();
+    atom.data.resid = res_id;
+    atom.data.name = name.into();
 
     Ok((id, Some(atom)))
 }
@@ -218,7 +218,7 @@ mod tests {
 
         let (atoms, _) = parse(BufReader::new(mol2.as_bytes())).unwrap();
 
-        assert_eq!(atoms[0].resname, "é");
-        assert_eq!(atoms[0].resid, 1);
+        assert_eq!(atoms[0].data.resname, "é");
+        assert_eq!(atoms[0].data.resid, 1);
     }
 }

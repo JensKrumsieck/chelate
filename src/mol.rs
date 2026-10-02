@@ -1,7 +1,7 @@
 //! Functions for parsing MDL MOL files (chemical/x-mdl-molfile)
 //! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
 use super::{atomic_number, column};
-use crate::atom::{Atom, Bond};
+use crate::types::{Atom, Bond};
 use crate::error::{FileError, ParseError};
 use std::io::{BufRead, BufReader, Read};
 
@@ -24,7 +24,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
     *atom_count += 1;
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
-    atom.name = symbol.into();
+    atom.data.name = symbol.into();
 
     Ok(Some(atom))
 }

@@ -5,8 +5,8 @@
 //!
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
 use super::normalize_symbol;
-use crate::atom::{ATOMIC_SYMBOLS, Atom, Bond};
 use crate::error::{FileError, ParseError};
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond};
 use nalgebra::Matrix4;
 use std::{
     collections::HashMap,
@@ -87,12 +87,12 @@ fn parse_atom_line(
     label_map.insert(id.to_owned(), *atom_count);
     let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     //additional info
-    atom.disorder_group = disorder_group;
-    atom.name = id.into();
-    atom.resname = residue.into();
-    atom.chain = chain_id.into();
-    atom.resid = seq_id;
-    atom.occupancy = occ;
+    atom.data.disorder_group = disorder_group;
+    atom.data.name = id.into();
+    atom.data.resname = residue.into();
+    atom.data.chain = chain_id.into();
+    atom.data.resid = seq_id;
+    atom.data.occupancy = occ;
     Some(atom)
 }
 
@@ -370,14 +370,14 @@ mod tests {
         let reader = BufReader::new(file);
         let (atoms, bonds) = parse(reader).unwrap();
         assert_eq!(
-            atoms.iter().filter(|a| a.disorder_group != 2).count(),
+            atoms.iter().filter(|a| a.data.disorder_group != 2).count(),
             atom_len
         );
         assert_eq!(
             bonds
                 .iter()
-                .filter(|b| atoms[b.atom1 - 1].disorder_group != 2
-                    && atoms[b.atom2 - 1].disorder_group != 2)
+                .filter(|b| atoms[b.atom1 - 1].data.disorder_group != 2
+                    && atoms[b.atom2 - 1].data.disorder_group != 2)
                 .count(),
             bond_len
         );
@@ -399,7 +399,7 @@ mod tests {
         assert_eq!(bonds.len(), bonds1.len() + bonds2.len());
         //second block uses its own cell parameters
         for (atom, expected) in atoms[atoms1.len()..].iter().zip(&atoms2) {
-            assert_eq!(atom.name, expected.name);
+            assert_eq!(atom.data.name, expected.data.name);
             assert_eq!(atom.coord, expected.coord);
         }
         //bonds of the second block refer to atoms of the second block
@@ -484,9 +484,13 @@ _cell_angle_gamma 90
         let (atoms, _) = parse(BufReader::new(File::open(filename).unwrap())).unwrap();
 
         for atom in atoms {
-            let symbol = normalize_symbol(element_from_label(&atom.name));
+            let symbol = normalize_symbol(element_from_label(&atom.data.name));
             let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol).unwrap() + 1;
-            assert_eq!(atomic_number as u8, atom.atomic_number, "{}", atom.name);
+            assert_eq!(
+                atomic_number as u8, atom.atomic_number,
+                "{}",
+                atom.data.name
+            );
         }
     }
 }

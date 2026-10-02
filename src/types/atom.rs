@@ -1,58 +1,11 @@
 use nalgebra::{Point3, point};
-#[cfg(feature = "petgraph")]
-use petgraph::{Graph, Undirected};
 use smol_str::SmolStr;
-use std::ops::{Deref, DerefMut};
-
-#[cfg(feature = "petgraph")]
-pub type Molecule = Graph<Atom, Bond, Undirected>;
-
-#[cfg(feature = "petgraph")]
-pub trait ToMolecule<T> {
-    fn to_molecule(self) -> Molecule;
-}
-
-#[cfg(feature = "petgraph")]
-impl ToMolecule<Self> for (Vec<Atom>, Vec<Bond>) {
-    /// Takes a Tuple of atoms and bonds and converts it into a Molecule (UnGraph)
-    /// Be aware: If no bonds can be found, this method will try to generate them!
-    fn to_molecule(self) -> Molecule {
-        let (atoms, mut bonds) = self;
-
-        //generate bonds if none
-        if bonds.is_empty() {
-            bonds = Bond::from_atoms(&atoms);
-        }
-        //skip bonds to atoms that do not exist, as the graph would add empty atoms for them
-        let ids = 1..=atoms.len();
-        bonds.retain(|b| ids.contains(&b.atom1) && ids.contains(&b.atom2));
-
-        let mut mol = Molecule::with_capacity(atoms.len(), bonds.len());
-        for atom in atoms {
-            mol.add_node(atom);
-        }
-        mol.extend_with_edges(bonds);
-
-        mol
-    }
-}
-
-#[cfg(feature = "petgraph")]
-impl ToMolecule<Self> for Vec<Atom> {
-    /// Converts a tuple of atoms and bonds into a `Molecule`.
-    ///
-    /// If no bonds are provided, they will be generated automatically.
-    fn to_molecule(self) -> Molecule {
-        let bonds = Bond::from_atoms(&self);
-        (self, bonds).to_molecule()
-    }
-}
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Atom {
     pub id: usize,
     pub atomic_number: u8,
-    pub data: Box<AtomData>,
+    pub data: AtomData,
     pub coord: Point3<f32>,
 }
 
@@ -84,20 +37,6 @@ impl Atom {
     }
 }
 
-impl Deref for Atom {
-    type Target = AtomData;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl DerefMut for Atom {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct AtomData {
     pub name: SmolStr,
@@ -121,7 +60,7 @@ impl Default for AtomData {
     }
 }
 
-pub(crate) static ATOMIC_SYMBOLS: [&str; 118] = [
+pub static ATOMIC_SYMBOLS: [&str; 118] = [
     "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl",
     "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As",
     "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In",
@@ -207,39 +146,4 @@ fn bond_from_atoms_parallel(atoms: &[Atom]) -> Vec<Bond> {
             })
         })
         .collect()
-}
-
-#[cfg(feature = "petgraph")]
-impl petgraph::IntoWeightedEdge<Bond> for Bond {
-    type NodeId = u32;
-
-    fn into_weighted_edge(self) -> (Self::NodeId, Self::NodeId, Bond) {
-        //subtract 1 as atom ids start at 1 and index expects 0
-        (self.atom1 as u32 - 1, self.atom2 as u32 - 1, self)
-    }
-}
-
-#[cfg(all(test, feature = "petgraph"))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_to_molecule_skips_bonds_to_missing_atoms() {
-        let atoms = vec![
-            Atom::new(1, 6, 0.0, 0.0, 0.0),
-            Atom::new(2, 6, 1.5, 0.0, 0.0),
-        ];
-        let bond = |atom1, atom2| Bond {
-            atom1,
-            atom2,
-            order: 1,
-            is_aromatic: false,
-        };
-        let bonds = vec![bond(1, 2), bond(0, 1), bond(2, 4_000_000_000)];
-
-        let mol = (atoms, bonds).to_molecule();
-
-        assert_eq!(mol.node_count(), 2);
-        assert_eq!(mol.edge_count(), 1);
-    }
 }
