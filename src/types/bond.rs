@@ -1,4 +1,3 @@
-#[cfg(feature = "rayon")]
 use crate::types::Atom;
 
 #[derive(Debug)]
