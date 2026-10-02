@@ -1,6 +1,7 @@
 use nalgebra::{Point3, point};
 #[cfg(feature = "petgraph")]
 use petgraph::{Graph, Undirected};
+use smol_str::SmolStr;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "petgraph")]
@@ -99,10 +100,10 @@ impl DerefMut for Atom {
 
 #[derive(Debug, PartialEq)]
 pub struct AtomData {
-    pub name: String,
-    pub resname: String,
+    pub name: SmolStr,
+    pub resname: SmolStr,
     pub resid: i32,
-    pub chain: char,
+    pub chain: SmolStr,
     pub disorder_group: usize,
     pub occupancy: f32,
 }
@@ -111,7 +112,7 @@ impl Default for AtomData {
     fn default() -> Self {
         Self {
             name: Default::default(),
-            resname: "UNK".to_string(),
+            resname: "UNK".into(),
             resid: Default::default(),
             chain: Default::default(),
             disorder_group: Default::default(),

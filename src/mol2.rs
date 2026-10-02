@@ -13,7 +13,10 @@ use std::{
 /// `None` for atoms that are no elements like dummy atoms (`Du`) or lone pairs (`LP`).
 /// The line should contain the atom id and name, the x, y, and z coordinates followed by the atom type.
 /// Example line: `     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500`
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<(usize, Option<Atom>), ParseError> {
+fn parse_atom_line(
+    line: &str,
+    atom_count: &mut usize,
+) -> Result<(usize, Option<Atom>), ParseError> {
     let mut iter = line.split_whitespace();
 
     let id = iter
@@ -66,9 +69,9 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<(usize, Option<
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
     atom.chain = chain_id;
-    atom.resname = residue.to_string();
+    atom.resname = residue.into();
     atom.resid = res_id;
-    atom.name = name.to_string();
+    atom.name = name.into();
 
     Ok((id, Some(atom)))
 }

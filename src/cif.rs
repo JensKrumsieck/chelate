@@ -71,9 +71,7 @@ fn parse_atom_line(
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(0);
     let residue = column(header.residue).unwrap_or("UNK");
-    let chain_id = column(header.chain)
-        .and_then(|s| s.chars().next())
-        .unwrap_or_default();
+    let chain_id = column(header.chain).unwrap_or_default();
     let seq_id = column(header.seq_id)
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or_default();
@@ -90,9 +88,9 @@ fn parse_atom_line(
     let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
     //additional info
     atom.disorder_group = disorder_group;
-    atom.name = id.to_string();
-    atom.resname = residue.to_string();
-    atom.chain = chain_id;
+    atom.name = id.into();
+    atom.resname = residue.into();
+    atom.chain = chain_id.into();
     atom.resid = seq_id;
     atom.occupancy = occ;
     Some(atom)

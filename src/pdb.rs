@@ -55,10 +55,10 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
 
     let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
     atom.chain = chain;
-    atom.resname = resname;
+    atom.resname = resname.into();
     atom.resid = resid;
     atom.occupancy = occ;
-    atom.name = symbol.to_string();
+    atom.name = symbol.into();
 
     Ok(Some(atom))
 }
