@@ -45,10 +45,3 @@ path = "fuzz_targets/xyz.rs"
 test = false
 doc = false
 bench = false
-
-[[bin]]
-name = "bonds"
-path = "fuzz_targets/bonds.rs"
-test = false
-doc = false
-bench = false
