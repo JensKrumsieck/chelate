@@ -1,13 +1,49 @@
+use crate::types::InvalidElementError;
+use smol_str::SmolStr;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Element(u8);
 
 impl Element {
+    pub const DUMMY: Self = Element(0);
+
     pub fn new(atomic_number: u8) -> Self {
         Self(atomic_number)
     }
 
     pub fn atomic_number(&self) -> u8 {
         self.0
+    }
+}
+
+impl TryFrom<&str> for Element {
+    type Error = InvalidElementError;
+
+    fn try_from(symbol: &str) -> Result<Self, Self::Error> {
+        let trimmed = symbol.trim();
+
+        if trimmed.starts_with('*') {
+            return Ok(Element::DUMMY);
+        }
+
+        // Leading letters only, so labels like "Fe2+" or "C1" resolve to their element.
+        let end = trimmed
+            .find(|c: char| !c.is_ascii_alphabetic())
+            .unwrap_or(trimmed.len());
+        let letters = &trimmed[..end];
+
+        if letters.eq_ignore_ascii_case("DU")
+            || letters.eq_ignore_ascii_case("DA")
+            || letters.eq_ignore_ascii_case("XX")
+        {
+            return Ok(Element::DUMMY);
+        }
+
+        ATOMIC_SYMBOLS
+            .iter()
+            .position(|&s| s.eq_ignore_ascii_case(letters))
+            .map(|i| Element::new((i + 1) as u8))
+            .ok_or_else(|| InvalidElementError(SmolStr::new(symbol)))
     }
 }
 
@@ -31,3 +67,47 @@ pub(crate) static COVALENT_RADII_PM: [u32; 118] = [
     168, 165, 167, 173, 176, 161, 157, 149, 143, 141, 134, 129, 128, 121, 122, 172, 171, 156, 162,
     156, 157,
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_element() {
+        let element = Element::try_from("Fe").unwrap();
+        assert_eq!(element.atomic_number(), 26);
+
+        let element = Element::try_from("FE").unwrap();
+        assert_eq!(element.atomic_number(), 26);
+
+        let element = Element::try_from("Fe2+").unwrap();
+        assert_eq!(element.atomic_number(), 26);
+
+        let element = Element::try_from("C").unwrap();
+        assert_eq!(element.atomic_number(), 6);
+
+        let element = Element::try_from("CU").unwrap();
+        assert_eq!(element.atomic_number(), 29);
+
+        let element = Element::try_from("Cl-").unwrap();
+        assert_eq!(element.atomic_number(), 17);
+
+        let element = Element::try_from("Ca").unwrap();
+        assert_eq!(element.atomic_number(), 20);
+
+        let element = Element::try_from("Xx").unwrap();
+        assert_eq!(element.atomic_number(), 0);
+
+        let element = Element::try_from("DU").unwrap();
+        assert_eq!(element.atomic_number(), 0);
+
+        let element = Element::try_from("DA").unwrap();
+        assert_eq!(element.atomic_number(), 0);
+
+        let element = Element::try_from("*").unwrap();
+        assert_eq!(element.atomic_number(), 0);
+
+        let element = Element::try_from("JK");
+        assert!(element.is_err())
+    }
+}
