@@ -1,29 +1,27 @@
 //! Functions for parsing MDL MOL files (chemical/x-mdl-molfile)
 //! Documentation can be found here: <https://en.wikipedia.org/wiki/Chemical_table_file#Molfile>
-use super::{atomic_number, column};
-use crate::types::{Atom, Bond};
-use crate::error::{FileError, ParseError};
+use super::column;
+use crate::error::FileError;
+use crate::types::{Atom, Bond, Element};
 use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of an MOL file and returns an `Atom` object,
 /// `None` for symbols that are no elements like `R#` or `*`.
 /// The line should contain the x, y, and z coordinates (10 characters each) followed by the atomic symbol (columns 32 - 34).
 /// Example line: `    1.3194   -1.2220   -0.8506 N   0  0  0  0  0  0  0  0  0  0  0  0`
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, ParseError> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, FileError> {
     let coord = |start| {
         column(line, start, start + 10)
             .parse::<f32>()
-            .map_err(|_| ParseError::new("Invalid coordinates"))
+            .map_err(|_| FileError::parse("Invalid coordinates"))
     };
     let (x, y, z) = (coord(0)?, coord(10)?, coord(20)?);
 
     let symbol = column(line, 31, 34);
-    let Some(atomic_number) = atomic_number(symbol) else {
-        return Ok(None);
-    };
+    let element = Element::try_from(symbol)?;
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
+    let mut atom = Atom::new(*atom_count, element, x, y, z);
     atom.data.name = symbol.into();
 
     Ok(Some(atom))
@@ -42,8 +40,8 @@ fn parse_counts_line(line: &str) -> Option<(usize, usize)> {
 /// The line should contain the atoms ids and the bond order where 4 is aromatic bond.
 /// The fields are 3 characters wide and run together for atom ids above 99.
 /// Example lines: `  1  2  2  0  0  0  0`, `100101  1  0  0  0  0`
-fn parse_bond_line(line: &str) -> Result<Bond, ParseError> {
-    let invalid = |_| ParseError::new("Invalid bond");
+fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
+    let invalid = |_| FileError::parse("Invalid bond");
     let atom1 = column(line, 0, 3).parse().map_err(invalid)?;
     let atom2 = column(line, 3, 6).parse().map_err(invalid)?;
     let mut order = column(line, 6, 9).parse().map_err(invalid)?;
@@ -88,14 +86,14 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
     let mut next_line = || -> Result<(String, usize), FileError> {
         match lines.next() {
             Some((line, line_number)) => Ok((line?, line_number)),
-            None => Err(ParseError::new("Unexpected end of file").into()),
+            None => Err(FileError::parse("Unexpected end of file")),
         }
     };
 
     // the counts line follows the 3 header lines and tells how many atom and bond lines follow
     let (counts_line, line_number) = next_line()?;
     let (atom_len, bond_len) = parse_counts_line(&counts_line)
-        .ok_or_else(|| ParseError::new("Invalid counts line").with_line(line_number))?;
+        .ok_or_else(|| FileError::parse("Invalid counts line").with_line(line_number))?;
 
     let mut atom_count = 0;
     let mut atoms = Vec::with_capacity(atom_len);
@@ -115,7 +113,9 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
         let id = |atom: usize| {
             atom.checked_sub(1)
                 .and_then(|index| ids.get(index).copied())
-                .ok_or_else(|| ParseError::new("Bond refers to missing atom").with_line(line_number))
+                .ok_or_else(|| {
+                    FileError::parse("Bond refers to missing atom").with_line(line_number)
+                })
         };
         // bonds to skipped atoms are skipped as well
         if let (Some(atom1), Some(atom2)) = (id(bond.atom1)?, id(bond.atom2)?) {
@@ -132,6 +132,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ErrorKind;
     use rstest::rstest;
     use std::fs::File;
 
@@ -183,10 +184,10 @@ mod tests {
 
         assert!(matches!(
             error,
-            FileError::Parse(ParseError {
+            FileError {
+                kind: ErrorKind::Parse(_),
                 line_number: Some(4),
-                ..
-            })
+            }
         ));
     }
 }

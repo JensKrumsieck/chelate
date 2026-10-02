@@ -6,7 +6,7 @@ use std::{
     path::Path,
     vec,
 };
-use types::{ATOMIC_SYMBOLS, Atom, Bond};
+use types::{Atom, Bond};
 
 pub mod cif;
 pub mod error;
@@ -77,43 +77,10 @@ pub fn parse<P: Read>(
     }
 }
 
-/// Returns the atomic number of an element symbol in any case, `None` for unknown elements.
-fn atomic_number(symbol: &str) -> Option<u8> {
-    let symbol = normalize_symbol(symbol);
-    ATOMIC_SYMBOLS
-        .iter()
-        .position(|&s| s == symbol)
-        .map(|index| index as u8 + 1)
-}
-
 /// Returns the trimmed content of the zero-based column range `start..end` of a fixed-width line.
 /// Returns the available part if the line ends within the range and an empty string if it ends before.
 fn column(line: &str, start: usize, end: usize) -> &str {
     line.get(start..end.min(line.len()))
         .unwrap_or_default()
         .trim()
-}
-
-fn normalize_symbol(symbol: &str) -> String {
-    let mut chars = symbol.chars();
-    if let Some(first_char) = chars.next() {
-        first_char.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
-    } else {
-        String::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rstest::rstest;
-
-    #[rstest]
-    #[case("cu", "Cu")]
-    #[case("CL", "Cl")]
-    #[case("ùX", "Ùx")]
-    #[case("", "")]
-    fn test_normalize_symbol(#[case] symbol: &str, #[case] expected: &str) {
-        assert_eq!(normalize_symbol(symbol), expected);
-    }
 }

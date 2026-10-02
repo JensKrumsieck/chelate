@@ -12,10 +12,10 @@ pub struct Atom {
 }
 
 impl Atom {
-    pub fn new(id: usize, atomic_number: u8, x: f32, y: f32, z: f32) -> Self {
+    pub fn new(id: usize, symbol: Element, x: f32, y: f32, z: f32) -> Self {
         Atom {
             id,
-            symbol: Element::new(atomic_number),
+            symbol,
             coord: point![x, y, z],
             data: Default::default(),
         }

@@ -1,8 +1,8 @@
 //! Functions for parsing PDB files (chemical/x-pdb)
 //! The PDB file format is documented here <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>
-use super::{atomic_number, column};
-use crate::error::{FileError, ParseError};
+use super::column;
 use crate::types::Atom;
+use crate::{error::FileError, types::Element};
 use std::io::{BufRead, BufReader, Read};
 
 /// Parses a single line of a PDB file and returns an `Atom` object.
@@ -26,11 +26,11 @@ use std::io::{BufRead, BufReader, Read};
 /// | 61 - 66  | Real(6.2)   | tempFactor   | Temperature factor.                         |
 /// | 77 - 78  | LString(2)  | element      | Element symbol, right-justified.            |
 /// | 79 - 80  | LString(2)  | charge       | Charge on the atom.                         |
-fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, ParseError> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, FileError> {
     let coord = |start, end| {
         column(line, start, end)
             .parse::<f32>()
-            .map_err(|_| ParseError::new("Invalid coordinates"))
+            .map_err(|_| FileError::parse("Invalid coordinates"))
     };
     let (x, y, z) = (coord(30, 38)?, coord(38, 46)?, coord(46, 54)?);
 
@@ -42,9 +42,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
             .unwrap_or_default(),
         symbol => symbol,
     };
-    let Some(atomic_number) = atomic_number(symbol) else {
-        return Ok(None);
-    };
+    let element = Element::try_from(symbol)?;
 
     let chain = column(line, 21, 22).parse().unwrap_or_default();
     let resname = column(line, 17, 20).to_string();
@@ -53,7 +51,7 @@ fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<Option<Atom>, P
 
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
+    let mut atom = Atom::new(*atom_count, element, x, y, z);
     atom.data.chain = chain;
     atom.data.resname = resname.into();
     atom.data.resid = resid;

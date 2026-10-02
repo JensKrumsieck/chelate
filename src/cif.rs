@@ -4,9 +4,8 @@
 //! - PDBx/mmCIF: <https://mmcif.wwpdb.org/docs/user-guide/guide.html> (chemical/x-mmcif)
 //!
 //! See also: <https://en.wikipedia.org/wiki/Crystallographic_Information_File>
-use super::normalize_symbol;
-use crate::error::{FileError, ParseError};
-use crate::types::{ATOMIC_SYMBOLS, Atom, Bond};
+use crate::error::FileError;
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, Element};
 use nalgebra::Matrix4;
 use std::{
     collections::HashMap,
@@ -57,16 +56,29 @@ fn parse_atom_line(
     header: &CIFAtomHeader,
     atom_count: &mut usize,
     label_map: &mut HashMap<String, usize>,
-) -> Option<Atom> {
+) -> Result<Option<Atom>, FileError> {
     let vec = line.split_whitespace().collect::<Vec<_>>();
     let column = |index: Option<usize>| vec.get(index?).copied();
+    let required = |index: Option<usize>, name: &str| {
+        column(index).ok_or_else(|| FileError::parse(format!("Missing {name}")))
+    };
+    // esd in parentheses is dropped: `0.0662(3)` -> `0.0662`
+    let coordinate = |index: Option<usize>, name: &str| {
+        let value = required(index, name)?;
+        value
+            .split('(')
+            .next()
+            .unwrap_or(value)
+            .parse::<f32>()
+            .map_err(|_| FileError::parse(format!("Invalid coordinate {name}")))
+    };
 
-    let id = column(header.id)?;
+    let id = required(header.id, "atom label")?;
     //the type symbol is optional as labels start with the element symbol
     let symbol = column(header.symbol).unwrap_or_else(|| element_from_label(id));
-    let x = column(header.x)?.split('(').next()?.parse().ok()?;
-    let y = column(header.y)?.split('(').next()?.parse().ok()?;
-    let z = column(header.z)?.split('(').next()?.parse().ok()?;
+    let x = coordinate(header.x, "x")?;
+    let y = coordinate(header.y, "y")?;
+    let z = coordinate(header.z, "z")?;
     let disorder_group = column(header.disorder)
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(0);
@@ -79,13 +91,10 @@ fn parse_atom_line(
         .and_then(|s| s.parse::<f32>().ok())
         .unwrap_or(1.0);
 
-    let atomic_number = ATOMIC_SYMBOLS
-        .iter()
-        .position(|&s| s == normalize_symbol(symbol))?
-        + 1;
+    let element = Element::try_from(symbol)?;
     *atom_count += 1;
     label_map.insert(id.to_owned(), *atom_count);
-    let mut atom = Atom::new(*atom_count, atomic_number as u8, x, y, z);
+    let mut atom = Atom::new(*atom_count, element, x, y, z);
     //additional info
     atom.data.disorder_group = disorder_group;
     atom.data.name = id.into();
@@ -93,7 +102,8 @@ fn parse_atom_line(
     atom.data.chain = chain_id.into();
     atom.data.resid = seq_id;
     atom.data.occupancy = occ;
-    Some(atom)
+
+    Ok(Some(atom))
 }
 
 /// Derives the element symbol from an atom label for files without `_atom_site_type_symbol`.
@@ -140,13 +150,13 @@ fn parse_bond_line(line: &str, map: &HashMap<String, usize>, dialect: &CIFDialec
 ///
 /// assert_eq!(atoms.len(), 206);
 /// assert_eq!(bonds.len(), 230);
-/// assert_eq!(atoms[0].atomic_number, 31);
+/// assert_eq!(atoms[0].symbol.atomic_number(), 31);
 /// assert!(relative_eq!(atoms[0].coord, Point3::new(11.377683611607571, 1.637743396392762, 3.827447754962335), epsilon = 1.0e-5));
-/// assert_eq!(atoms[0].resname, "UNK");
-/// assert_eq!(atoms[0].resid, 0);
-/// assert_eq!(atoms[0].chain, char::default());
-/// assert_eq!(atoms[0].occupancy, 1.0);
-/// assert_eq!(atoms[0].name, "Ga1A");
+/// assert_eq!(atoms[0].data.resname, "UNK");
+/// assert_eq!(atoms[0].data.resid, 0);
+/// assert_eq!(atoms[0].data.chain, "");
+/// assert_eq!(atoms[0].data.occupancy, 1.0);
+/// assert_eq!(atoms[0].data.name, "Ga1A");
 /// ```
 pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), FileError> {
     let mut dialect = CIFDialect::default();
@@ -167,10 +177,11 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
 
     let mut map: HashMap<String, usize> = HashMap::new();
 
-    for line in reader.lines() {
+    for (i, line) in reader.lines().enumerate() {
         let line = line?;
         let line_trimmed = line.trim();
-        if line_trimmed.is_empty() {
+        // `#` starts a comment in CIF, mmCIF also ends loops with a bare `#`
+        if line_trimmed.is_empty() || line_trimmed.starts_with('#') {
             continue;
         }
 
@@ -217,10 +228,10 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
             if line_trimmed.starts_with("_") {
                 set_header_indices(line_trimmed, header_idx, &mut headers);
                 header_idx += 1;
-            } else if let Some(atom) =
-                parse_atom_line(line_trimmed, &headers, &mut atom_count, &mut map)
-            {
-                atoms.push(atom);
+            } else {
+                let atom = parse_atom_line(line_trimmed, &headers, &mut atom_count, &mut map)
+                    .map_err(|e| e.with_line(i + 1))?;
+                atoms.extend(atom);
             }
         } else if pick_bonds && let Some(bond) = parse_bond_line(line_trimmed, &map, &dialect) {
             bonds.push(bond);
@@ -294,7 +305,7 @@ fn get_value_from_uncertainity(input: &str) -> Option<f32> {
 fn fractional_to_cartesian(
     atoms: &mut [Atom],
     cell_params: &[Option<f32>; 6],
-) -> Result<(), ParseError> {
+) -> Result<(), FileError> {
     if atoms.is_empty() {
         return Ok(());
     }
@@ -307,7 +318,7 @@ fn fractional_to_cartesian(
         Some(gamma),
     ] = *cell_params
     else {
-        return Err(ParseError::new(
+        return Err(FileError::parse(
             "Missing cell parameters for fractional coordinates",
         ));
     };
@@ -350,6 +361,7 @@ fn conversion_matrix(a: f32, b: f32, c: f32, alpha: f32, beta: f32, gamma: f32) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ErrorKind;
     use approx::relative_eq;
     use nalgebra::Point3;
     use rstest::rstest;
@@ -461,7 +473,13 @@ _cell_angle_gamma 90
 
         let error = parse(BufReader::new(cif.as_bytes())).unwrap_err();
 
-        assert!(matches!(error, FileError::Parse(_)));
+        assert!(matches!(
+            error,
+            FileError {
+                kind: ErrorKind::Parse(_),
+                ..
+            }
+        ));
     }
 
     #[rstest]
@@ -473,6 +491,15 @@ _cell_angle_gamma 90
     #[case("Ow1", "O")]
     fn test_element_from_label(#[case] label: &str, #[case] element: &str) {
         assert_eq!(element_from_label(label), element);
+    }
+
+    fn normalize_symbol(symbol: &str) -> String {
+        let mut chars = symbol.chars();
+        if let Some(first_char) = chars.next() {
+            first_char.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+        } else {
+            String::new()
+        }
     }
 
     #[rstest]
@@ -487,7 +514,8 @@ _cell_angle_gamma 90
             let symbol = normalize_symbol(element_from_label(&atom.data.name));
             let atomic_number = ATOMIC_SYMBOLS.iter().position(|&s| s == symbol).unwrap() + 1;
             assert_eq!(
-                atomic_number as u8, atom.symbol.atomic_number(),
+                atomic_number as u8,
+                atom.symbol.atomic_number(),
                 "{}",
                 atom.data.name
             );

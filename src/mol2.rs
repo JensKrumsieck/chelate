@@ -1,9 +1,8 @@
 //! Functions for parsing TRIPOS MOL2 files (TRIPOS now is Certara) (chemical/x-mol2)
 //! Native format of the SYBYL cheminformatics application.
 //! The MOL2 Format is documented here <https://paulbourke.net/dataformats/mol2/>
-use super::atomic_number;
-use crate::types::{ATOMIC_SYMBOLS, Atom, Bond};
-use crate::error::{FileError, ParseError};
+use crate::error::FileError;
+use crate::types::{ATOMIC_SYMBOLS, Atom, Bond, Element};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read},
@@ -13,29 +12,26 @@ use std::{
 /// `None` for atoms that are no elements like dummy atoms (`Du`) or lone pairs (`LP`).
 /// The line should contain the atom id and name, the x, y, and z coordinates followed by the atom type.
 /// Example line: `     1 N       58.6644  69.6736   7.0558   N.3       1 ASP25  32.7500`
-fn parse_atom_line(
-    line: &str,
-    atom_count: &mut usize,
-) -> Result<(usize, Option<Atom>), ParseError> {
+fn parse_atom_line(line: &str, atom_count: &mut usize) -> Result<(usize, Option<Atom>), FileError> {
     let mut iter = line.split_whitespace();
 
     let id = iter
         .next()
         .and_then(|s| s.parse().ok())
-        .ok_or_else(|| ParseError::new("Invalid atom id"))?;
+        .ok_or_else(|| FileError::parse("Invalid atom id"))?;
     let name = iter
         .next()
-        .ok_or_else(|| ParseError::new("Missing atom name"))?;
+        .ok_or_else(|| FileError::parse("Missing atom name"))?;
     let mut coord = || {
         iter.next()
             .and_then(|s| s.parse::<f32>().ok())
-            .ok_or_else(|| ParseError::new("Invalid coordinates"))
+            .ok_or_else(|| FileError::parse("Invalid coordinates"))
     };
     let (x, y, z) = (coord()?, coord()?, coord()?);
 
     let type_ = iter
         .next()
-        .ok_or_else(|| ParseError::new("Missing atom type"))?;
+        .ok_or_else(|| FileError::parse("Missing atom type"))?;
     let mut symbol = type_.split('.').next().unwrap_or_default();
 
     let chain_id = if let Some(next) = iter.next() {
@@ -62,12 +58,10 @@ fn parse_atom_line(
         symbol = get_symbol_from_name(name)
     }
 
-    let Some(atomic_number) = atomic_number(symbol) else {
-        return Ok((id, None));
-    };
+    let element = Element::try_from(symbol)?;
     *atom_count += 1;
 
-    let mut atom = Atom::new(*atom_count, atomic_number, x, y, z);
+    let mut atom = Atom::new(*atom_count, element, x, y, z);
     atom.data.chain = chain_id;
     atom.data.resname = residue.into();
     atom.data.resid = res_id;
@@ -86,19 +80,19 @@ fn get_symbol_from_name(s: &str) -> &str {
 /// Parses a single line of an MO2L file and returns a `Bond` object.
 /// The line should contain the bond id, the atoms ids by the bond order where "ar" is aromatic bond.
 /// Example line: `     1     1     2   un`
-fn parse_bond_line(line: &str) -> Result<Bond, ParseError> {
+fn parse_bond_line(line: &str) -> Result<Bond, FileError> {
     let mut iter = line.split_whitespace();
 
     iter.next(); // Skip the bond id
     let mut atom = || {
         iter.next()
             .and_then(|s| s.parse().ok())
-            .ok_or_else(|| ParseError::new("Invalid bond"))
+            .ok_or_else(|| FileError::parse("Invalid bond"))
     };
     let (atom1, atom2) = (atom()?, atom()?);
     let raw_order = iter
         .next()
-        .ok_or_else(|| ParseError::new("Missing bond type"))?;
+        .ok_or_else(|| FileError::parse("Missing bond type"))?;
     let order = raw_order.parse().unwrap_or(1);
     let is_aromatic = raw_order.starts_with("ar");
 
@@ -175,7 +169,7 @@ pub fn parse<P: Read>(reader: BufReader<P>) -> Result<(Vec<Atom>, Vec<Bond>), Fi
             let id = |atom| {
                 ids.get(&atom)
                     .copied()
-                    .ok_or_else(|| ParseError::new("Bond refers to missing atom").with_line(i + 1))
+                    .ok_or_else(|| FileError::parse("Bond refers to missing atom").with_line(i + 1))
             };
             // bonds to skipped atoms are skipped as well
             if let (Some(atom1), Some(atom2)) = (id(bond.atom1)?, id(bond.atom2)?) {
