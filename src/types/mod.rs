@@ -1,3 +1,4 @@
 mod atom;
-
-pub use atom::{ATOMIC_SYMBOLS, Atom, Bond};
+mod bond;
+pub use atom::{ATOMIC_SYMBOLS, Atom};
+pub use bond::Bond;
